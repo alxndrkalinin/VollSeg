@@ -6,6 +6,7 @@ Created on Fri Sep 27 13:08:41 2019
 """
 
 from __future__ import print_function, unicode_literals, absolute_import, division
+
 # import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -42,11 +43,10 @@ import diplib as dip
 from skimage.filters import threshold_multiotsu
 from scipy.ndimage.measurements import find_objects
 
-Boxname = 'ImageIDBox'
+Boxname = "ImageIDBox"
 
 
 class SegCorrect(object):
-
     def __init__(self, imagedir, segmentationdir):
 
         self.imagedir = imagedir
@@ -55,10 +55,10 @@ class SegCorrect(object):
     def showNapari(self):
 
         self.viewer = napari.Viewer()
-        Raw_path = os.path.join(self.imagedir, '*tif')
+        Raw_path = os.path.join(self.imagedir, "*tif")
         X = glob.glob(Raw_path)
         Imageids = []
-        Seg_path = os.path.join(self.segmentationdir, '*tif')
+        Seg_path = os.path.join(self.segmentationdir, "*tif")
         Y = glob.glob(Seg_path)
         SegImageids = []
         for imagename in X:
@@ -68,7 +68,7 @@ class SegCorrect(object):
 
         imageidbox = QComboBox()
         imageidbox.addItem(Boxname)
-        savebutton = QPushButton(' Save Corrections')
+        savebutton = QPushButton(" Save Corrections")
 
         for i in range(0, len(Imageids)):
 
@@ -76,67 +76,50 @@ class SegCorrect(object):
 
         imageidbox.currentIndexChanged.connect(
             lambda trackid=imageidbox: self.image_add(
-
                 imageidbox.currentText(),
-                self.segmentationdir + "/" +
-                os.path.basename(os.path.splitext(
-                    imageidbox.currentText())[0]) + '.tif',
-                os.path.basename(os.path.splitext(
-                    imageidbox.currentText())[0]),
-                False
-
+                self.segmentationdir + "/" + os.path.basename(os.path.splitext(imageidbox.currentText())[0]) + ".tif",
+                os.path.basename(os.path.splitext(imageidbox.currentText())[0]),
+                False,
             )
         )
 
         savebutton.clicked.connect(
             lambda trackid=imageidbox: self.image_add(
-
                 imageidbox.currentText(),
-                self.segmentationdir + "/" +
-                os.path.basename(os.path.splitext(
-                    imageidbox.currentText())[0]) + '.tif',
-                os.path.basename(os.path.splitext(
-                    imageidbox.currentText())[0]),
-                True
-
+                self.segmentationdir + "/" + os.path.basename(os.path.splitext(imageidbox.currentText())[0]) + ".tif",
+                os.path.basename(os.path.splitext(imageidbox.currentText())[0]),
+                True,
             )
         )
 
-        self.viewer.window.add_dock_widget(
-            imageidbox, name="Image", area='bottom')
-        self.viewer.window.add_dock_widget(
-            savebutton, name="Save Segmentations", area='bottom')
+        self.viewer.window.add_dock_widget(imageidbox, name="Image", area="bottom")
+        self.viewer.window.add_dock_widget(savebutton, name="Save Segmentations", area="bottom")
 
-    def image_add(self, image_toread, seg_image_toread, imagename,  save=False):
+    def image_add(self, image_toread, seg_image_toread, imagename, save=False):
 
         if not save:
             for layer in list(self.viewer.layers):
 
-                if 'Image' in layer.name or layer.name in 'Image':
+                if "Image" in layer.name or layer.name in "Image":
 
-                    self.viewer.layers.remove(
-                        layer)
+                    self.viewer.layers.remove(layer)
 
             self.image = imread(image_toread)
             self.segimage = imread(seg_image_toread)
 
-            self.viewer.add_image(
-                self.image, name='Image'+imagename)
-            self.viewer.add_labels(
-                self.segimage, name='Image'+'Integer_Labels'+imagename)
+            self.viewer.add_image(self.image, name="Image" + imagename)
+            self.viewer.add_labels(self.segimage, name="Image" + "Integer_Labels" + imagename)
 
         if save:
 
-            ModifiedArraySeg = self.viewer.layers['Image' +
-                                                  'Integer_Labels' + imagename].data
-            ModifiedArraySeg = ModifiedArraySeg.astype('uint16')
-            imwrite((self.segmentationdir + imagename +
-                    '.tif'), ModifiedArraySeg)
+            ModifiedArraySeg = self.viewer.layers["Image" + "Integer_Labels" + imagename].data
+            ModifiedArraySeg = ModifiedArraySeg.astype("uint16")
+            imwrite((self.segmentationdir + imagename + ".tif"), ModifiedArraySeg)
 
 
 def BinaryLabel(BinaryImageOriginal, max_size=15000):
 
-    BinaryImageOriginal = BinaryImageOriginal.astype('uint16')
+    BinaryImageOriginal = BinaryImageOriginal.astype("uint16")
     image = normalizeFloatZeroOne(BinaryImageOriginal)
     image = invertimage(image)
     IntegerImage = watershed(-image)
@@ -208,61 +191,63 @@ def expand_labels(label_image, distance=1):
            [2, 3, 3, 0]])
     """
 
-    distances, nearest_label_coords = distance_transform_edt(
-        label_image == 0, return_indices=True
-    )
+    distances, nearest_label_coords = distance_transform_edt(label_image == 0, return_indices=True)
     labels_out = np.zeros_like(label_image)
     dilate_mask = distances <= distance
     # build the coordinates to find nearest labels,
     # in contrast to [1] this implementation supports label arrays
     # of any dimension
-    masked_nearest_label_coords = [
-        dimension_indices[dilate_mask]
-        for dimension_indices in nearest_label_coords
-    ]
+    masked_nearest_label_coords = [dimension_indices[dilate_mask] for dimension_indices in nearest_label_coords]
     nearest_labels = label_image[tuple(masked_nearest_label_coords)]
     labels_out[dilate_mask] = nearest_labels
     return labels_out
 
 
-def SimplePrediction(x, UnetModel, StarModel, n_tiles=(2, 2), UseProbability=True, min_size=20, axes='ZYX', globalthreshold=0.2):
+def SimplePrediction(
+    x, UnetModel, StarModel, n_tiles=(2, 2), UseProbability=True, min_size=20, axes="ZYX", globalthreshold=0.2
+):
 
     Mask = UNETPrediction3D(x, UnetModel, n_tiles, axes)
 
     smart_seeds, _, star_labels, _ = STARPrediction3D(
-        x, axes, StarModel, n_tiles, unet_mask=Mask, smartcorrection=None, UseProbability=UseProbability, globalthreshold=globalthreshold)
+        x,
+        axes,
+        StarModel,
+        n_tiles,
+        unet_mask=Mask,
+        smartcorrection=None,
+        UseProbability=UseProbability,
+        globalthreshold=globalthreshold,
+    )
 
-    smart_seeds = smart_seeds.astype('uint16')
+    smart_seeds = smart_seeds.astype("uint16")
 
     return smart_seeds
 
 
 def poisson_noise(x, mu):
-    x = x.astype('float32')
+    x = x.astype("float32")
     gaussiannoise = np.random.poisson(mu, x.shape)
     x = x + gaussiannoise
 
     return x
 
 
-
-
-
 def fill_label_holes(lbl_img, **kwargs):
     """Fill small holes in label image."""
     # TODO: refactor 'fill_label_holes' and 'edt_prob' to share code
     def grow(sl, interior):
-        return tuple(slice(s.start-int(w[0]), s.stop+int(w[1])) for s, w in zip(sl, interior))
+        return tuple(slice(s.start - int(w[0]), s.stop + int(w[1])) for s, w in zip(sl, interior))
 
     def shrink(interior):
         return tuple(slice(int(w[0]), (-1 if w[1] else None)) for w in interior)
+
     objects = find_objects(lbl_img)
     lbl_img_filled = np.zeros_like(lbl_img)
     for i, sl in enumerate(objects, 1):
         if sl is None:
             continue
-        interior = [(s.start > 0, s.stop < sz)
-                    for s, sz in zip(sl, lbl_img.shape)]
+        interior = [(s.start > 0, s.stop < sz) for s, sz in zip(sl, lbl_img.shape)]
         shrink_slice = shrink(interior)
         grown_mask = lbl_img[grow(sl, interior)] == i
         mask_filled = binary_fill_holes(grown_mask, **kwargs)[shrink_slice]
@@ -272,7 +257,7 @@ def fill_label_holes(lbl_img, **kwargs):
 
 def dilate_label_holes(lbl_img, iterations):
     lbl_img_filled = np.zeros_like(lbl_img)
-    for l in (range(np.min(lbl_img), np.max(lbl_img) + 1)):
+    for l in range(np.min(lbl_img), np.max(lbl_img) + 1):
         mask = lbl_img == l
         mask_filled = binary_dilation(mask, iterations=iterations)
         lbl_img_filled[mask_filled] = l
@@ -301,23 +286,21 @@ def match_labels(ys, iou_threshold=0):
 
     ys = np.asarray(ys)
     if not ys.ndim in (3, 4):
-        raise ValueError('label image y should be 3 or 4 dimensional!')
+        raise ValueError("label image y should be 3 or 4 dimensional!")
 
     def _match_single(x, y):
         res = matching(x, y, report_matches=True, thresh=0)
 
-        pairs = tuple(p for p, s in zip(res.matched_pairs,
-                      res.matched_scores) if s >= iou_threshold)
+        pairs = tuple(p for p, s in zip(res.matched_pairs, res.matched_scores) if s >= iou_threshold)
         map_dict = dict((i2, i1) for i1, i2 in pairs)
 
         y2 = np.zeros_like(y)
         y_labels = set(np.unique(y)) - {0}
 
         # labels that can be used for non-matched objects
-        label_reservoir = list(
-            set(np.arange(1, len(y_labels)+1)) - set(map_dict.values()))
+        label_reservoir = list(set(np.arange(1, len(y_labels) + 1)) - set(map_dict.values()))
         for r in regionprops(y):
-            m = (y[r.slice] == r.label)
+            m = y[r.slice] == r.label
             if r.label in map_dict:
                 y2[r.slice][m] = map_dict[r.label]
             else:
@@ -327,8 +310,8 @@ def match_labels(ys, iou_threshold=0):
 
     ys_new = ys.copy()
 
-    for i in range(len(ys)-1):
-        ys_new[i+1] = _match_single(ys_new[i], ys[i+1])
+    for i in range(len(ys) - 1):
+        ys_new[i + 1] = _match_single(ys_new[i], ys[i + 1])
 
     return ys_new
     # ys_new = merge_labels_across_volume(ys, RelabelZ, threshold = iou_threshold)
@@ -344,9 +327,11 @@ def remove_big_objects(ar, max_size=6400, connectivity=1, in_place=False):
     try:
         component_sizes = np.bincount(ccs.ravel())
     except ValueError:
-        raise ValueError("Negative value labels are not supported. Try "
-                         "relabeling the input with `scipy.ndimage.label` or "
-                         "`skimage.morphology.label`.")
+        raise ValueError(
+            "Negative value labels are not supported. Try "
+            "relabeling the input with `scipy.ndimage.label` or "
+            "`skimage.morphology.label`."
+        )
 
     too_big = component_sizes > max_size
     too_big_mask = too_big[ccs]
@@ -372,11 +357,11 @@ def multiplotline(plotA, plotB, plotC, titleA, titleB, titleC, targetdir=None, F
     if plotTitle is not None:
         Title = plotTitle
     else:
-        Title = 'MultiPlot'
+        Title = "MultiPlot"
     if targetdir is not None and File is not None:
-        plt.savefig(targetdir + Title + File + '.png')
+        plt.savefig(targetdir + Title + File + ".png")
     if targetdir is not None and File is None:
-        plt.savefig(targetdir + Title + File + '.png')
+        plt.savefig(targetdir + Title + File + ".png")
     plt.show()
 
 
@@ -398,57 +383,106 @@ def CCLabels(fname, max_size=15000):
     IntegerImage = label(image)
     labelclean = remove_big_objects(IntegerImage, max_size=max_size)
     AugmentedLabel = dilation(labelclean, selem=square(3))
-    AugmentedLabel = np.multiply(AugmentedLabel,  Orig)
+    AugmentedLabel = np.multiply(AugmentedLabel, Orig)
 
     return AugmentedLabel
 
 
-def NotumQueen(save_dir, fname, denoising_model, projection_model, mask_model, star_model, min_size=5, n_tiles=(1, 1, 1), UseProbability=True):
+def NotumQueen(
+    save_dir,
+    fname,
+    denoising_model,
+    projection_model,
+    mask_model,
+    star_model,
+    min_size=5,
+    n_tiles=(1, 1, 1),
+    UseProbability=True,
+):
 
     Path(save_dir).mkdir(exist_ok=True)
-    projection_results = save_dir + 'Projected/'
+    projection_results = save_dir + "Projected/"
     Path(projection_results).mkdir(exist_ok=True)
     Name = os.path.basename(os.path.splitext(fname)[0])
-    print('Denoising Image')
+    print("Denoising Image")
     image = imread(fname)
-    image = denoising_model.predict(image.astype('float32'), 'ZYX', n_tiles=n_tiles)
-    image = projection_model.predict(
-        image.astype('float32'), 'YX', n_tiles=(n_tiles[1], n_tiles[2]))
+    image = denoising_model.predict(image.astype("float32"), "ZYX", n_tiles=n_tiles)
+    image = projection_model.predict(image.astype("float32"), "YX", n_tiles=(n_tiles[1], n_tiles[2]))
 
-    imwrite((projection_results + Name + '.tif'), image.astype('float32'))
+    imwrite((projection_results + Name + ".tif"), image.astype("float32"))
 
-    NotumSegmentation2D(save_dir, image, fname, mask_model, star_model, min_size=min_size, n_tiles=(
-        n_tiles[1], n_tiles[2]), UseProbability=UseProbability)
+    NotumSegmentation2D(
+        save_dir,
+        image,
+        fname,
+        mask_model,
+        star_model,
+        min_size=min_size,
+        n_tiles=(n_tiles[1], n_tiles[2]),
+        UseProbability=UseProbability,
+    )
 
 
-def NotumSeededQueen(save_dir, fname, denoising_model, projection_model, unet_model, mask_model, star_model, min_size=5, n_tiles=(1, 1, 1), UseProbability=True):
+def NotumSeededQueen(
+    save_dir,
+    fname,
+    denoising_model,
+    projection_model,
+    unet_model,
+    mask_model,
+    star_model,
+    min_size=5,
+    n_tiles=(1, 1, 1),
+    UseProbability=True,
+):
 
     Path(save_dir).mkdir(exist_ok=True)
-    projection_results = save_dir + 'Projected/'
+    projection_results = save_dir + "Projected/"
     Path(projection_results).mkdir(exist_ok=True)
     Name = os.path.basename(os.path.splitext(fname)[0])
-    print('Denoising Image')
+    print("Denoising Image")
     image = imread(fname)
-    image = denoising_model.predict(image.astype('float32'), 'ZYX', n_tiles=n_tiles)
-    image = projection_model.predict(
-        image.astype('float32'), 'YX', n_tiles=(n_tiles[1], n_tiles[2]))
+    image = denoising_model.predict(image.astype("float32"), "ZYX", n_tiles=n_tiles)
+    image = projection_model.predict(image.astype("float32"), "YX", n_tiles=(n_tiles[1], n_tiles[2]))
 
-    imwrite((projection_results + Name + '.tif'), image.astype('float32'))
+    imwrite((projection_results + Name + ".tif"), image.astype("float32"))
 
-    SeededNotumSegmentation2D(save_dir, image, fname, unet_model, mask_model, star_model,
-                              min_size=min_size, n_tiles=(n_tiles[1], n_tiles[2]), UseProbability=UseProbability)
+    SeededNotumSegmentation2D(
+        save_dir,
+        image,
+        fname,
+        unet_model,
+        mask_model,
+        star_model,
+        min_size=min_size,
+        n_tiles=(n_tiles[1], n_tiles[2]),
+        UseProbability=UseProbability,
+    )
 
 
-def SeededNotumSegmentation2D(SaveDir, image, fname, UnetModel, MaskModel, StarModel, min_size=5, n_tiles=(2, 2),donormalize = True, lower_perc = 1.0, upper_perc = 99.8, UseProbability=True):
+def SeededNotumSegmentation2D(
+    SaveDir,
+    image,
+    fname,
+    UnetModel,
+    MaskModel,
+    StarModel,
+    min_size=5,
+    n_tiles=(2, 2),
+    donormalize=True,
+    lower_perc=1.0,
+    upper_perc=99.8,
+    UseProbability=True,
+):
 
-    print('Generating SmartSeed results')
+    print("Generating SmartSeed results")
 
-    MASKResults = SaveDir + 'OverAllMask/'
-    unet_results = SaveDir + 'UnetMask/'
-    star_labelsResults = SaveDir + 'StarDistMask/'
-    smart_seedsResults = SaveDir + 'smart_seedsMask/'
-    smart_seedsLabelResults = SaveDir + 'smart_seedsLabels/'
-    ProbResults = SaveDir + 'Probability/'
+    MASKResults = SaveDir + "OverAllMask/"
+    unet_results = SaveDir + "UnetMask/"
+    star_labelsResults = SaveDir + "StarDistMask/"
+    smart_seedsResults = SaveDir + "smart_seedsMask/"
+    smart_seedsLabelResults = SaveDir + "smart_seedsLabels/"
+    ProbResults = SaveDir + "Probability/"
 
     Path(SaveDir).mkdir(exist_ok=True)
     Path(smart_seedsResults).mkdir(exist_ok=True)
@@ -462,13 +496,14 @@ def SeededNotumSegmentation2D(SaveDir, image, fname, UnetModel, MaskModel, StarM
 
     # U-net prediction
 
-    OverAllMask = SuperUNETPrediction(image, MaskModel, n_tiles, 'YX')
-    Mask = SuperUNETPrediction(image, UnetModel, n_tiles, 'YX')
+    OverAllMask = SuperUNETPrediction(image, MaskModel, n_tiles, "YX")
+    Mask = SuperUNETPrediction(image, UnetModel, n_tiles, "YX")
     if donormalize:
-        image = normalize(image, lower_perc, upper_perc, axis=(0, 1, 2)) 
+        image = normalize(image, lower_perc, upper_perc, axis=(0, 1, 2))
     # Smart Seed prediction
     smart_seeds, Markers, star_labels, ProbImage = SuperSTARPrediction(
-        image, StarModel, n_tiles, unet_mask=Mask, OverAllunet_mask=OverAllMask, UseProbability=UseProbability)
+        image, StarModel, n_tiles, unet_mask=Mask, OverAllunet_mask=OverAllMask, UseProbability=UseProbability
+    )
 
     smart_seedsLabels = smart_seeds.copy()
 
@@ -481,16 +516,15 @@ def SeededNotumSegmentation2D(SaveDir, image, fname, UnetModel, MaskModel, StarM
     indices = np.where(image_max < 1.2)
     for y, x in indices:
         image_max[y, x] = 0
-    smart_seeds = np.array(dip.UpperSkeleton2D(image_max.astype('float32')))
+    smart_seeds = np.array(dip.UpperSkeleton2D(image_max.astype("float32")))
 
     # Save results, we only need smart seeds finale results but hey!
-    imwrite((ProbResults + Name + '.tif'), ProbImage.astype('float32'))
-    imwrite((smart_seedsResults + Name + '.tif'), smart_seeds.astype('uint8'))
-    imwrite((smart_seedsLabelResults + Name + '.tif'),
-            smart_seedsLabels.astype('uint16'))
-    imwrite((star_labelsResults + Name + '.tif'), star_labels.astype('uint16'))
-    imwrite((unet_results + Name + '.tif'), Mask.astype('uint8'))
-    imwrite((MASKResults + Name + '.tif'), OverAllMask.astype('uint8'))
+    imwrite((ProbResults + Name + ".tif"), ProbImage.astype("float32"))
+    imwrite((smart_seedsResults + Name + ".tif"), smart_seeds.astype("uint8"))
+    imwrite((smart_seedsLabelResults + Name + ".tif"), smart_seedsLabels.astype("uint16"))
+    imwrite((star_labelsResults + Name + ".tif"), star_labels.astype("uint16"))
+    imwrite((unet_results + Name + ".tif"), Mask.astype("uint8"))
+    imwrite((MASKResults + Name + ".tif"), OverAllMask.astype("uint8"))
 
 
 def CreateTrackMate_CSV(Label, Name, savedir):
@@ -501,10 +535,10 @@ def CreateTrackMate_CSV(Label, Name, savedir):
     YList = []
     TrackIDList = []
     QualityList = []
-    print('Image has shape:', Label.shape)
-    print('Image Dimensions:', len(Label.shape))
+    print("Image has shape:", Label.shape)
+    print("Image Dimensions:", len(Label.shape))
 
-    CurrentSegimage = Label.astype('uint16')
+    CurrentSegimage = Label.astype("uint16")
     properties = measure.regionprops(CurrentSegimage)
     for prop in properties:
 
@@ -525,64 +559,88 @@ def CreateTrackMate_CSV(Label, Name, savedir):
         QualityList.append(radius)
 
     df = pd.DataFrame(
-        list(
-            zip(
-                XList,
-                YList,
-                TimeList,
-                TrackIDList,
-                QualityList
-            )
-        ),
+        list(zip(XList, YList, TimeList, TrackIDList, QualityList)),
         index=None,
-        columns=[
-            'POSITION_X',
-            'POSITION_Y',
-            'FRAME',
-            'TRACK_ID',
-            'QUALITY'
-        ],
+        columns=["POSITION_X", "POSITION_Y", "FRAME", "TRACK_ID", "QUALITY"],
     )
 
-    df.to_csv(savedir + '/' + 'TrackMate_csv' + Name + '.csv', index=False)
+    df.to_csv(savedir + "/" + "TrackMate_csv" + Name + ".csv", index=False)
 
 
-def NotumKing(save_dir, filesRaw, denoising_model, projection_model, unet_model, star_model, n_tiles=(1, 1, 1), UseProbability=True, dounet=True, seedpool=True, min_size_mask=100, min_size=5, max_size=10000000):
+def NotumKing(
+    save_dir,
+    filesRaw,
+    denoising_model,
+    projection_model,
+    unet_model,
+    star_model,
+    n_tiles=(1, 1, 1),
+    UseProbability=True,
+    dounet=True,
+    seedpool=True,
+    min_size_mask=100,
+    min_size=5,
+    max_size=10000000,
+):
 
     Path(save_dir).mkdir(exist_ok=True)
-    projection_results = save_dir + 'Projected/'
+    projection_results = save_dir + "Projected/"
     Path(projection_results).mkdir(exist_ok=True)
 
-    print('Denoising Image')
+    print("Denoising Image")
     time_lapse = []
     for fname in filesRaw:
         image = imread(fname)
-        image = denoising_model.predict(image.astype('float32'), 'ZYX', n_tiles=n_tiles)
-        image = projection_model.predict(
-            image.astype('float32'), 'YX', n_tiles=(n_tiles[1], n_tiles[2]))
+        image = denoising_model.predict(image.astype("float32"), "ZYX", n_tiles=n_tiles)
+        image = projection_model.predict(image.astype("float32"), "YX", n_tiles=(n_tiles[1], n_tiles[2]))
         time_lapse.append(image)
     Name = os.path.basename(os.path.splitext(fname)[0])
     time_lapse = np.asarray(time_lapse)
-    imwrite((projection_results + Name + '.tif'), time_lapse.astype('float32'))
+    imwrite((projection_results + Name + ".tif"), time_lapse.astype("float32"))
 
-    Raw_path = os.path.join(projection_results, '*tif')
+    Raw_path = os.path.join(projection_results, "*tif")
     filesRaw = glob.glob(Raw_path)
     for fname in filesRaw:
         image = imread(fname)
         Name = os.path.basename(os.path.splittext(fname)[0])
-        VollSeg(image,  unet_model, star_model,  min_size_mask=min_size_mask, min_size=min_size, max_size=max_size, n_tiles=n_tiles,
-                  UseProbability=UseProbability, dounet=dounet, seedpool=seedpool, axes='ZYX', save_dir=save_dir, Name=Name)
+        VollSeg(
+            image,
+            unet_model,
+            star_model,
+            min_size_mask=min_size_mask,
+            min_size=min_size,
+            max_size=max_size,
+            n_tiles=n_tiles,
+            UseProbability=UseProbability,
+            dounet=dounet,
+            seedpool=seedpool,
+            axes="ZYX",
+            save_dir=save_dir,
+            Name=Name,
+        )
 
 
-def NotumSegmentation2D(save_dir, image, fname, mask_model, star_model, min_size=5, donormalize = True, lower_perc = 1.0, upper_perc = 99.8, n_tiles=(2, 2), UseProbability=True):
+def NotumSegmentation2D(
+    save_dir,
+    image,
+    fname,
+    mask_model,
+    star_model,
+    min_size=5,
+    donormalize=True,
+    lower_perc=1.0,
+    upper_perc=99.8,
+    n_tiles=(2, 2),
+    UseProbability=True,
+):
 
-    print('Generating SmartSeed results')
+    print("Generating SmartSeed results")
     Path(save_dir).mkdir(exist_ok=True)
-    MASKResults = save_dir + 'OverAllMask/'
-    star_labelsResults = save_dir + 'StarDistMask/'
-    smart_seedsResults = save_dir + 'smart_seedsMask/'
-    smart_seedsLabelResults = save_dir + 'smart_seedsLabels/'
-    ProbResults = save_dir + 'Probability/'
+    MASKResults = save_dir + "OverAllMask/"
+    star_labelsResults = save_dir + "StarDistMask/"
+    smart_seedsResults = save_dir + "smart_seedsMask/"
+    smart_seedsLabelResults = save_dir + "smart_seedsLabels/"
+    ProbResults = save_dir + "Probability/"
 
     Path(smart_seedsResults).mkdir(exist_ok=True)
     Path(star_labelsResults).mkdir(exist_ok=True)
@@ -595,12 +653,13 @@ def NotumSegmentation2D(save_dir, image, fname, mask_model, star_model, min_size
 
     # U-net prediction
 
-    OverAllMask = SuperUNETPrediction(image, mask_model, n_tiles, 'YX')
+    OverAllMask = SuperUNETPrediction(image, mask_model, n_tiles, "YX")
     if donormalize:
-        image = normalize(image, lower_perc, upper_perc, axis=(0, 1, 2)) 
+        image = normalize(image, lower_perc, upper_perc, axis=(0, 1, 2))
     # Smart Seed prediction
     smart_seeds, Markers, star_labels, ProbImage = SuperSTARPrediction(
-        image, star_model, n_tiles, unet_mask=OverAllMask, OverAllunet_mask=OverAllMask, UseProbability=UseProbability)
+        image, star_model, n_tiles, unet_mask=OverAllMask, OverAllunet_mask=OverAllMask, UseProbability=UseProbability
+    )
 
     smart_seedsLabels = smart_seeds.copy()
 
@@ -612,16 +671,15 @@ def NotumSegmentation2D(save_dir, image, fname, mask_model, star_model, min_size
     image_max = np.add(invertProbimage, SegimageB)
     indices = np.where(image_max < 1.2)
     image_max[indices] = 0
-    smart_seeds = np.array(dip.UpperSkeleton2D(image_max.astype('float32')))
+    smart_seeds = np.array(dip.UpperSkeleton2D(image_max.astype("float32")))
 
     # Save results, we only need smart seeds finale results but hey!
-    imwrite((ProbResults + Name + '.tif'), ProbImage.astype('float32'))
-    imwrite((smart_seedsResults + Name + '.tif'), smart_seeds.astype('uint8'))
-    imwrite((smart_seedsLabelResults + Name + '.tif'),
-            smart_seedsLabels.astype('uint16'))
-    imwrite((star_labelsResults + Name + '.tif'), star_labels.astype('uint16'))
+    imwrite((ProbResults + Name + ".tif"), ProbImage.astype("float32"))
+    imwrite((smart_seedsResults + Name + ".tif"), smart_seeds.astype("uint8"))
+    imwrite((smart_seedsLabelResults + Name + ".tif"), smart_seedsLabels.astype("uint16"))
+    imwrite((star_labelsResults + Name + ".tif"), star_labels.astype("uint16"))
 
-    imwrite((MASKResults + Name + '.tif'), OverAllMask.astype('uint8'))
+    imwrite((MASKResults + Name + ".tif"), OverAllMask.astype("uint8"))
 
 
 def SmartSkel(smart_seedsLabels, ProbImage):
@@ -631,7 +689,7 @@ def SmartSkel(smart_seedsLabels, ProbImage):
     image_max = np.add(invertProbimage, SegimageB)
     indices = np.where(image_max < 1.2)
     image_max[indices] = 0
-    Skeleton = np.array(dip.UpperSkeleton2D(image_max.astype('float32')))
+    Skeleton = np.array(dip.UpperSkeleton2D(image_max.astype("float32")))
 
     return Skeleton
 
@@ -665,6 +723,8 @@ def SuperWatershedwithMask(Image, Label, mask):
     watershedImage = watershed(-Image, markers, mask=mask.copy())
 
     return watershedImage, markers
+
+
 # If there are neighbouring seeds we do not put more seeds
 
 
@@ -684,8 +744,7 @@ def iouNotum(boxA, centroid):
     ndim = len(centroid)
     inside = False
 
-    Condition = [ConditioncheckNotum(centroid, boxA, p, ndim)
-                 for p in range(0, ndim)]
+    Condition = [ConditioncheckNotum(centroid, boxA, p, ndim) for p in range(0, ndim)]
 
     inside = all(Condition)
 
@@ -723,54 +782,69 @@ def SuperWatershedwithoutMask(Image, Label, mask, grid):
     return watershedImage, markers
 
 
-def Region_embedding(image, region, sourceimage, RGB = False):
+def Region_embedding(image, region, sourceimage, RGB=False):
 
     returnimage = np.zeros(image.shape)
     if region is not None:
-            if len(region) == 4 and len(image.shape) == 2:
-                rowstart = region[0]
-                colstart = region[1]
-                endrow = region[2]
-                endcol = region[3]
-                returnimage[rowstart:endrow, colstart:endcol] = sourceimage
-            if len(image.shape) == 3 and len(region) == 6  and RGB == False:
-                zstart = region[0]
-                rowstart = region[1]
-                colstart = region[2]
-                zend = region[3]
-                endrow = region[4]
-                endcol = region[5]
-                returnimage[zstart:zend, rowstart:endrow,
-                            colstart:endcol] = sourceimage
+        if len(region) == 4 and len(image.shape) == 2:
+            rowstart = region[0]
+            colstart = region[1]
+            endrow = region[2]
+            endcol = region[3]
+            returnimage[rowstart:endrow, colstart:endcol] = sourceimage
+        if len(image.shape) == 3 and len(region) == 6 and RGB == False:
+            zstart = region[0]
+            rowstart = region[1]
+            colstart = region[2]
+            zend = region[3]
+            endrow = region[4]
+            endcol = region[5]
+            returnimage[zstart:zend, rowstart:endrow, colstart:endcol] = sourceimage
 
-            if len(image.shape) == 3 and len(region) == 4  and RGB == False:
-                rowstart = region[0]
-                colstart = region[1]
-                endrow = region[2]
-                endcol = region[3]
-                returnimage[0:image.shape[0], rowstart:endrow,
-                            colstart:endcol] = sourceimage
+        if len(image.shape) == 3 and len(region) == 4 and RGB == False:
+            rowstart = region[0]
+            colstart = region[1]
+            endrow = region[2]
+            endcol = region[3]
+            returnimage[0 : image.shape[0], rowstart:endrow, colstart:endcol] = sourceimage
 
-            if len(image.shape) == 3 and len(region) == 4 and RGB:
-                returnimage = returnimage[:,:,0]
-                rowstart = region[0]
-                colstart = region[1]
-                endrow = region[2]
-                endcol = region[3]
-                returnimage[rowstart:endrow,
-                            colstart:endcol] = sourceimage
+        if len(image.shape) == 3 and len(region) == 4 and RGB:
+            returnimage = returnimage[:, :, 0]
+            rowstart = region[0]
+            colstart = region[1]
+            endrow = region[2]
+            endcol = region[3]
+            returnimage[rowstart:endrow, colstart:endcol] = sourceimage
 
     else:
         returnimage = image
     return returnimage
 
 
-def VollSeg2D(image, unet_model, star_model, noise_model=None, roi_model=None,  prob_thresh=None, nms_thresh=None, axes='YX', min_size_mask=5, min_size=5,
-              max_size=10000000, dounet=True, n_tiles=(2, 2),  donormalize=True, lower_perc=1, upper_perc=99.8, UseProbability=True, RGB=False, seedpool=True):
+def VollSeg2D(
+    image,
+    unet_model,
+    star_model,
+    noise_model=None,
+    roi_model=None,
+    prob_thresh=None,
+    nms_thresh=None,
+    axes="YX",
+    min_size_mask=5,
+    min_size=5,
+    max_size=10000000,
+    dounet=True,
+    n_tiles=(2, 2),
+    donormalize=True,
+    lower_perc=1,
+    upper_perc=99.8,
+    UseProbability=True,
+    RGB=False,
+    seedpool=True,
+):
 
-    print('Generating SmartSeed results')
+    print("Generating SmartSeed results")
 
-    
     if star_model is not None:
         nms_thresh = star_model.thresholds[1]
     elif nms_thresh is not None:
@@ -779,45 +853,41 @@ def VollSeg2D(image, unet_model, star_model, noise_model=None, roi_model=None,  
         nms_thresh = 0
 
     if RGB:
-        axes = 'YXC'
+        axes = "YXC"
     if noise_model is not None:
-        print('Denoising Image')
+        print("Denoising Image")
 
-        image = noise_model.predict(image.astype('float32'), axes=axes, n_tiles=n_tiles)
+        image = noise_model.predict(image.astype("float32"), axes=axes, n_tiles=n_tiles)
         indices = zip(*np.where(image < 0))
         for y, x in indices:
             image[y, x] = 0
     Mask = None
     Mask_patch = None
-    roi_image=None
+    roi_image = None
     if roi_model is not None:
         model_dim = roi_model.config.n_dim
         assert model_dim == len(
-            image.shape), f'For 2D images the region of interest model has to be 2D, model provided had {model_dim} instead'
-        roi_image = UNETPrediction3D(
-            image, roi_model, n_tiles, axes)
+            image.shape
+        ), f"For 2D images the region of interest model has to be 2D, model provided had {model_dim} instead"
+        roi_image = UNETPrediction3D(image, roi_model, n_tiles, axes)
         roi_bbox = Bbox_region(roi_image)
         if roi_bbox is not None:
-                rowstart = roi_bbox[0]
-                colstart = roi_bbox[1]
-                endrow = roi_bbox[2]
-                endcol = roi_bbox[3]
-                region = (slice(rowstart, endrow),
-                        slice(colstart, endcol))
-                # The actual pixels in that region.
-                patch = image[region]
+            rowstart = roi_bbox[0]
+            colstart = roi_bbox[1]
+            endrow = roi_bbox[2]
+            endcol = roi_bbox[3]
+            region = (slice(rowstart, endrow), slice(colstart, endcol))
+            # The actual pixels in that region.
+            patch = image[region]
         else:
 
-                 patch = image        
-
-    
+            patch = image
 
     else:
 
         patch = image
 
-        region = (slice(0, image.shape[0]),
-                  slice(0, image.shape[1]))
+        region = (slice(0, image.shape[0]), slice(0, image.shape[1]))
         rowstart = 0
         colstart = 0
         endrow = image.shape[1]
@@ -826,18 +896,16 @@ def VollSeg2D(image, unet_model, star_model, noise_model=None, roi_model=None,  
     if dounet:
 
         if unet_model is not None:
-            print('UNET segmentation on Image')
+            print("UNET segmentation on Image")
 
-            Mask = UNETPrediction3D(
-                patch, unet_model, n_tiles, axes, iou_threshold=nms_thresh)
-            Mask = remove_small_objects(
-                Mask.astype('uint16'), min_size=min_size_mask)
-            Mask = remove_big_objects(Mask.astype('uint16'), max_size=max_size)
+            Mask = UNETPrediction3D(patch, unet_model, n_tiles, axes, iou_threshold=nms_thresh)
+            Mask = remove_small_objects(Mask.astype("uint16"), min_size=min_size_mask)
+            Mask = remove_big_objects(Mask.astype("uint16"), max_size=max_size)
             Mask_patch = Mask.copy()
             if RGB:
-                    Mask = Mask[:, :, 0]
-                    Mask_patch = Mask_patch[:,:,0]
-            Mask = Region_embedding(image, roi_bbox, Mask, RGB = RGB)
+                Mask = Mask[:, :, 0]
+                Mask_patch = Mask_patch[:, :, 0]
+            Mask = Region_embedding(image, roi_bbox, Mask, RGB=RGB)
 
     elif noise_model is not None and dounet == False:
 
@@ -852,75 +920,119 @@ def VollSeg2D(image, unet_model, star_model, noise_model=None, roi_model=None,  
             regions = patch
         Mask = regions > 0
         Mask = label(Mask)
-        Mask = remove_small_objects(
-            Mask.astype('uint16'), min_size=min_size_mask)
-        Mask = remove_big_objects(Mask.astype('uint16'), max_size=max_size)
+        Mask = remove_small_objects(Mask.astype("uint16"), min_size=min_size_mask)
+        Mask = remove_big_objects(Mask.astype("uint16"), max_size=max_size)
         Mask_patch = Mask.copy()
         if RGB:
-                Mask = Mask[:, :, 0]
-                Mask_patch = Mask_patch[:,:,0]
-        Mask = Region_embedding(image, roi_bbox, Mask, RGB = RGB)
+            Mask = Mask[:, :, 0]
+            Mask_patch = Mask_patch[:, :, 0]
+        Mask = Region_embedding(image, roi_bbox, Mask, RGB=RGB)
     # Smart Seed prediction
-    print('Stardist segmentation on Image')
+    print("Stardist segmentation on Image")
     if RGB:
-        axis = (0,1,2)
+        axis = (0, 1, 2)
     else:
-        axis = (0,1)    
+        axis = (0, 1)
     if donormalize:
-        patch_star = normalize(patch.astype('float32'), lower_perc, upper_perc, axis=axis) 
+        patch_star = normalize(patch.astype("float32"), lower_perc, upper_perc, axis=axis)
     else:
         patch_star = patch
     smart_seeds, Markers, star_labels, proabability_map = SuperSTARPrediction(
-        patch_star, star_model, n_tiles, unet_mask=Mask_patch, UseProbability=UseProbability, prob_thresh=prob_thresh, nms_thresh=nms_thresh)
-    smart_seeds = remove_small_objects(
-        smart_seeds.astype('uint16'), min_size=min_size)
-    smart_seeds = remove_big_objects(
-        smart_seeds.astype('uint16'), max_size=max_size)
+        patch_star,
+        star_model,
+        n_tiles,
+        unet_mask=Mask_patch,
+        UseProbability=UseProbability,
+        prob_thresh=prob_thresh,
+        nms_thresh=nms_thresh,
+    )
+    smart_seeds = remove_small_objects(smart_seeds.astype("uint16"), min_size=min_size)
+    smart_seeds = remove_big_objects(smart_seeds.astype("uint16"), max_size=max_size)
     Skeleton = SmartSkel(smart_seeds, proabability_map)
     Skeleton = Skeleton > 0
     # For avoiding pixel level error
     if Mask is not None:
-       Mask = expand_labels(Mask, distance=1)
-   
+        Mask = expand_labels(Mask, distance=1)
 
     smart_seeds = expand_labels(smart_seeds, distance=1)
 
-    smart_seeds = Region_embedding(image, roi_bbox, smart_seeds, RGB = RGB)
-    Markers = Region_embedding(image, roi_bbox, Markers, RGB = RGB)
-    star_labels = Region_embedding(image, roi_bbox, star_labels, RGB = RGB)
-    proabability_map = Region_embedding(image, roi_bbox, proabability_map, RGB = RGB)
-    Skeleton = Region_embedding(image, roi_bbox, Skeleton, RGB = RGB)
+    smart_seeds = Region_embedding(image, roi_bbox, smart_seeds, RGB=RGB)
+    Markers = Region_embedding(image, roi_bbox, Markers, RGB=RGB)
+    star_labels = Region_embedding(image, roi_bbox, star_labels, RGB=RGB)
+    proabability_map = Region_embedding(image, roi_bbox, proabability_map, RGB=RGB)
+    Skeleton = Region_embedding(image, roi_bbox, Skeleton, RGB=RGB)
     if Mask is None:
         Mask = smart_seeds > 0
-   
 
     if noise_model == None and roi_image is not None:
-        return smart_seeds.astype('uint16'), Mask.astype('uint16'), star_labels.astype('uint16'), proabability_map, Markers.astype('uint16'), Skeleton.astype('uint16'), roi_image.astype('uint16')
-    
-    if noise_model == None and roi_image is None:
-        return smart_seeds.astype('uint16'), Mask.astype('uint16'), star_labels.astype('uint16'), proabability_map, Markers.astype('uint16'), Skeleton.astype('uint16')
+        return (
+            smart_seeds.astype("uint16"),
+            Mask.astype("uint16"),
+            star_labels.astype("uint16"),
+            proabability_map,
+            Markers.astype("uint16"),
+            Skeleton.astype("uint16"),
+            roi_image.astype("uint16"),
+        )
 
+    if noise_model == None and roi_image is None:
+        return (
+            smart_seeds.astype("uint16"),
+            Mask.astype("uint16"),
+            star_labels.astype("uint16"),
+            proabability_map,
+            Markers.astype("uint16"),
+            Skeleton.astype("uint16"),
+        )
 
     if noise_model is not None and roi_image is not None:
-        return smart_seeds.astype('uint16'), Mask.astype('uint16'), star_labels.astype('uint16'), proabability_map, Markers.astype('uint16'), Skeleton.astype('uint16'), image
+        return (
+            smart_seeds.astype("uint16"),
+            Mask.astype("uint16"),
+            star_labels.astype("uint16"),
+            proabability_map,
+            Markers.astype("uint16"),
+            Skeleton.astype("uint16"),
+            image,
+        )
 
     if noise_model is not None and roi_image is None:
-        return smart_seeds.astype('uint16'), Mask.astype('uint16'), star_labels.astype('uint16'), proabability_map, Markers.astype('uint16'), Skeleton.astype('uint16'), image, roi_image.astype('uint16')
+        return (
+            smart_seeds.astype("uint16"),
+            Mask.astype("uint16"),
+            star_labels.astype("uint16"),
+            proabability_map,
+            Markers.astype("uint16"),
+            Skeleton.astype("uint16"),
+            image,
+            roi_image.astype("uint16"),
+        )
 
 
-def VollSeg_unet(image, unet_model=None, roi_model=None, n_tiles=(2, 2), axes='YX', noise_model=None, min_size_mask=100, max_size=10000000,  RGB=False, iou_threshold=0.3, slice_merge=False, dounet=True, erosion_iterations = 15):
+def VollSeg_unet(
+    image,
+    unet_model=None,
+    roi_model=None,
+    n_tiles=(2, 2),
+    axes="YX",
+    noise_model=None,
+    min_size_mask=100,
+    max_size=10000000,
+    RGB=False,
+    iou_threshold=0.3,
+    slice_merge=False,
+    dounet=True,
+    erosion_iterations=15,
+):
 
-    
-    ndim = len(image.shape)    
+    ndim = len(image.shape)
     if roi_model is None:
         if RGB:
             if n_tiles is not None:
                 n_tiles = (n_tiles[0], n_tiles[1], 1)
 
-        
-
         if noise_model is not None:
-            image = noise_model.predict(image.astype('float32'), axes, n_tiles=n_tiles)
+            image = noise_model.predict(image.astype("float32"), axes, n_tiles=n_tiles)
 
             indices = zip(*np.where(image < 0))
             if ndim == 2:
@@ -934,7 +1046,7 @@ def VollSeg_unet(image, unet_model=None, roi_model=None, n_tiles=(2, 2), axes='Y
 
                     image[z, y, x] = 0
         if dounet and unet_model is not None:
-            Segmented = unet_model.predict(image.astype('float32'), axes, n_tiles=n_tiles)
+            Segmented = unet_model.predict(image.astype("float32"), axes, n_tiles=n_tiles)
         else:
             Segmented = image
         if RGB:
@@ -950,50 +1062,44 @@ def VollSeg_unet(image, unet_model=None, roi_model=None, n_tiles=(2, 2), axes='Y
             regions = Segmented
         Binary = regions > 0
         overall_mask = Binary.copy()
-        
+
         if ndim == 3:
-                for i in range(image.shape[0]):
-                    overall_mask[i,:] = binary_dilation(overall_mask[i,:], iterations = erosion_iterations)
-                    overall_mask[i,:] = binary_erosion(overall_mask[i,:], iterations = erosion_iterations)
-                    overall_mask[i,:] = fill_label_holes(overall_mask[i,:])
-                    Binary[i, :] = binary_erosion(Binary[i, :], iterations = 4)
-    
-       
+            for i in range(image.shape[0]):
+                overall_mask[i, :] = binary_dilation(overall_mask[i, :], iterations=erosion_iterations)
+                overall_mask[i, :] = binary_erosion(overall_mask[i, :], iterations=erosion_iterations)
+                overall_mask[i, :] = fill_label_holes(overall_mask[i, :])
+                Binary[i, :] = binary_erosion(Binary[i, :], iterations=4)
 
         Binary = label(Binary)
 
         if ndim == 2:
-            Binary = remove_small_objects(
-                Binary.astype('uint16'), min_size=min_size_mask)
-            Binary = remove_big_objects(
-                Binary.astype('uint16'), max_size=max_size)
+            Binary = remove_small_objects(Binary.astype("uint16"), min_size=min_size_mask)
+            Binary = remove_big_objects(Binary.astype("uint16"), max_size=max_size)
             Binary = fill_label_holes(Binary)
             Finalimage = relabel_sequential(Binary)[0]
         if ndim == 3 and slice_merge:
             for i in range(image.shape[0]):
                 Binary[i, :] = label(Binary[i, :])
-            
+
             Binary = match_labels(Binary, iou_threshold=iou_threshold)
             Binary = fill_label_holes(Binary)
 
-        if ndim == 3: 
+        if ndim == 3:
             for i in range(image.shape[0]):
-                Binary[i, :]  = remove_small_objects(
-                    Binary[i, :] .astype('uint16'), min_size=min_size_mask)
-                Binary[i, :]  = remove_big_objects(
-                    Binary[i, :] .astype('uint16'), max_size=max_size)    
+                Binary[i, :] = remove_small_objects(Binary[i, :].astype("uint16"), min_size=min_size_mask)
+                Binary[i, :] = remove_big_objects(Binary[i, :].astype("uint16"), max_size=max_size)
             Finalimage = relabel_sequential(Binary)[0]
             for i in range(image.shape[0]):
-              Finalimage[i,:] = expand_labels(Finalimage[i,:], distance = 50)
-           
-        zero_indices = np.where(overall_mask == 0)          
-        Finalimage[zero_indices] = 0     
+                Finalimage[i, :] = expand_labels(Finalimage[i, :], distance=50)
+
+        zero_indices = np.where(overall_mask == 0)
+        Finalimage[zero_indices] = 0
         Skeleton = skeletonize(Finalimage > 0)
-        
+
     elif roi_model is not None:
 
         if noise_model is not None:
-            image = noise_model.predict(image.astype('float32'), axes, n_tiles=n_tiles)
+            image = noise_model.predict(image.astype("float32"), axes, n_tiles=n_tiles)
 
             indices = zip(*np.where(image < 0))
             if ndim == 2:
@@ -1012,51 +1118,68 @@ def VollSeg_unet(image, unet_model=None, roi_model=None, n_tiles=(2, 2), axes='Y
             else:
                 tiles = n_tiles
             maximage = np.amax(image, axis=0)
-            Binary = UNETPrediction3D(
-                maximage, roi_model, tiles, 'YX')
+            Binary = UNETPrediction3D(maximage, roi_model, tiles, "YX")
 
             Binary = label(Binary)
-            Binary = remove_small_objects(
-                Binary.astype('uint16'), min_size=min_size_mask)
-            Binary = remove_big_objects(
-                Binary.astype('uint16'), max_size=max_size)
+            Binary = remove_small_objects(Binary.astype("uint16"), min_size=min_size_mask)
+            Binary = remove_big_objects(Binary.astype("uint16"), max_size=max_size)
             Binary = fill_label_holes(Binary)
 
             Finalimage = relabel_sequential(Binary)[0]
 
             Skeleton = skeletonize(find_boundaries(Finalimage > 0))
         elif model_dim == len(image.shape):
-            Binary = UNETPrediction3D(
-                image, roi_model, n_tiles, axes)
+            Binary = UNETPrediction3D(image, roi_model, n_tiles, axes)
 
             Binary = label(Binary)
             if ndim == 3 and slice_merge:
                 for i in range(image.shape[0]):
                     Binary[i, :] = label(Binary[i, :])
-                    
 
                 Binary = match_labels(Binary, iou_threshold=iou_threshold)
                 Binary = fill_label_holes(Binary)
                 for i in range(image.shape[0]):
-                    Binary[i, :] = remove_small_objects(
-                        Binary[i, :].astype('uint16'), min_size=min_size_mask)
-                    Binary[i, :] = remove_big_objects(
-                        Binary[i, :].astype('uint16'), max_size=max_size)
+                    Binary[i, :] = remove_small_objects(Binary[i, :].astype("uint16"), min_size=min_size_mask)
+                    Binary[i, :] = remove_big_objects(Binary[i, :].astype("uint16"), max_size=max_size)
 
             Finalimage = relabel_sequential(Binary)[0]
 
             Skeleton = skeletonize(find_boundaries(Finalimage > 0))
-        
+
+    return Finalimage.astype("uint16"), Skeleton, image
 
 
+def VollSeg(
+    image,
+    unet_model=None,
+    star_model=None,
+    roi_model=None,
+    axes="ZYX",
+    noise_model=None,
+    prob_thresh=None,
+    nms_thresh=None,
+    min_size_mask=100,
+    min_size=100,
+    max_size=10000000,
+    n_tiles=(1, 1, 1),
+    UseProbability=True,
+    globalthreshold=0.2,
+    extent=0,
+    donormalize=True,
+    lower_perc=1,
+    upper_perc=99.8,
+    dounet=True,
+    seedpool=True,
+    save_dir=None,
+    Name="Result",
+    startZ=0,
+    slice_merge=False,
+    iou_threshold=0.3,
+    RGB=False,
+    unet_mask=None,
+):
 
-    return Finalimage.astype('uint16'), Skeleton, image
-
-
-def VollSeg(image,  unet_model=None, star_model=None, roi_model=None,  axes='ZYX', noise_model=None, prob_thresh=None, nms_thresh=None, min_size_mask=100, min_size=100, max_size=10000000,
-            n_tiles=(1, 1, 1), UseProbability=True, globalthreshold=0.2,  extent=0,  donormalize=True, lower_perc=1, upper_perc=99.8, dounet=True, seedpool=True, save_dir=None, Name='Result',  startZ=0, slice_merge=False, iou_threshold=0.3, RGB=False, unet_mask=None):
-
-    print('Models', star_model, unet_model, roi_model, noise_model) 
+    print("Models", star_model, unet_model, roi_model, noise_model)
     if len(image.shape) == 2:
 
         # if the default tiling of the function is not changed by the user, we use the last two tuples
@@ -1066,216 +1189,389 @@ def VollSeg(image,  unet_model=None, star_model=None, roi_model=None,  axes='ZYX
         # If stardist model is supplied we use this method
         if star_model is not None:
 
-            res = VollSeg2D(image, unet_model, star_model, roi_model=roi_model,  noise_model=noise_model, prob_thresh=prob_thresh, nms_thresh=nms_thresh,  donormalize=donormalize, lower_perc=lower_perc, upper_perc=upper_perc, axes=axes, min_size_mask=min_size_mask, min_size=min_size,
-                            max_size=max_size, dounet=dounet, n_tiles=n_tiles, UseProbability=UseProbability, RGB=RGB)
+            res = VollSeg2D(
+                image,
+                unet_model,
+                star_model,
+                roi_model=roi_model,
+                noise_model=noise_model,
+                prob_thresh=prob_thresh,
+                nms_thresh=nms_thresh,
+                donormalize=donormalize,
+                lower_perc=lower_perc,
+                upper_perc=upper_perc,
+                axes=axes,
+                min_size_mask=min_size_mask,
+                min_size=min_size,
+                max_size=max_size,
+                dounet=dounet,
+                n_tiles=n_tiles,
+                UseProbability=UseProbability,
+                RGB=RGB,
+            )
 
         # If there is no stardist model we use unet model or denoising model or both to get the semantic segmentation
         if star_model is None:
 
-            res = VollSeg_unet(image, unet_model=unet_model, roi_model=roi_model, n_tiles=n_tiles, axes=axes, min_size_mask=min_size_mask,
-                               max_size=max_size,  noise_model=noise_model, RGB=RGB, iou_threshold=iou_threshold, slice_merge=slice_merge, dounet=dounet)
-    if len(image.shape) == 3 and 'T' not in axes and RGB == False:
+            res = VollSeg_unet(
+                image,
+                unet_model=unet_model,
+                roi_model=roi_model,
+                n_tiles=n_tiles,
+                axes=axes,
+                min_size_mask=min_size_mask,
+                max_size=max_size,
+                noise_model=noise_model,
+                RGB=RGB,
+                iou_threshold=iou_threshold,
+                slice_merge=slice_merge,
+                dounet=dounet,
+            )
+    if len(image.shape) == 3 and "T" not in axes and RGB == False:
         # this is a 3D image and if stardist model is supplied we use this method
         if star_model is not None:
-            res = VollSeg3D(image,  unet_model, star_model, roi_model=roi_model,  axes=axes, noise_model=noise_model, prob_thresh=prob_thresh, nms_thresh=nms_thresh, donormalize=donormalize, lower_perc=lower_perc, upper_perc=upper_perc, min_size_mask=min_size_mask, min_size=min_size, max_size=max_size,
-                            n_tiles=n_tiles, UseProbability=UseProbability, globalthreshold=globalthreshold, extent=extent, dounet=dounet, seedpool=seedpool, startZ=startZ, slice_merge=slice_merge, iou_threshold=iou_threshold, unet_mask=unet_mask)
+            res = VollSeg3D(
+                image,
+                unet_model,
+                star_model,
+                roi_model=roi_model,
+                axes=axes,
+                noise_model=noise_model,
+                prob_thresh=prob_thresh,
+                nms_thresh=nms_thresh,
+                donormalize=donormalize,
+                lower_perc=lower_perc,
+                upper_perc=upper_perc,
+                min_size_mask=min_size_mask,
+                min_size=min_size,
+                max_size=max_size,
+                n_tiles=n_tiles,
+                UseProbability=UseProbability,
+                globalthreshold=globalthreshold,
+                extent=extent,
+                dounet=dounet,
+                seedpool=seedpool,
+                startZ=startZ,
+                slice_merge=slice_merge,
+                iou_threshold=iou_threshold,
+                unet_mask=unet_mask,
+            )
 
         # If there is no stardist model we use unet model with or without denoising model
         if star_model is None:
 
-            res = VollSeg_unet(image, unet_model=unet_model, roi_model=roi_model, n_tiles=n_tiles, axes=axes, min_size_mask=min_size_mask,
-                               max_size=max_size,  noise_model=noise_model, RGB=RGB, iou_threshold=iou_threshold, slice_merge=slice_merge, dounet=dounet)
-    if len(image.shape) == 3 and 'T' not in axes and RGB:
+            res = VollSeg_unet(
+                image,
+                unet_model=unet_model,
+                roi_model=roi_model,
+                n_tiles=n_tiles,
+                axes=axes,
+                min_size_mask=min_size_mask,
+                max_size=max_size,
+                noise_model=noise_model,
+                RGB=RGB,
+                iou_threshold=iou_threshold,
+                slice_merge=slice_merge,
+                dounet=dounet,
+            )
+    if len(image.shape) == 3 and "T" not in axes and RGB:
         # this is a 3D image and if stardist model is supplied we use this method
         if star_model is not None:
-            res = VollSeg2D(image, unet_model, star_model, roi_model=roi_model, noise_model=noise_model, prob_thresh=prob_thresh, nms_thresh=nms_thresh,  donormalize=donormalize, lower_perc=lower_perc, upper_perc=upper_perc, axes=axes, min_size_mask=min_size_mask, min_size=min_size,
-                            max_size=max_size, dounet=dounet, n_tiles=n_tiles, UseProbability=UseProbability, RGB=RGB)
+            res = VollSeg2D(
+                image,
+                unet_model,
+                star_model,
+                roi_model=roi_model,
+                noise_model=noise_model,
+                prob_thresh=prob_thresh,
+                nms_thresh=nms_thresh,
+                donormalize=donormalize,
+                lower_perc=lower_perc,
+                upper_perc=upper_perc,
+                axes=axes,
+                min_size_mask=min_size_mask,
+                min_size=min_size,
+                max_size=max_size,
+                dounet=dounet,
+                n_tiles=n_tiles,
+                UseProbability=UseProbability,
+                RGB=RGB,
+            )
         # If there is no stardist model we use unet model with or without denoising model
         if star_model is None:
-            print('I am here')
-            res = VollSeg_unet(image, unet_model=unet_model, roi_model=roi_model, n_tiles=n_tiles, axes=axes, min_size_mask=min_size_mask,
-                               max_size=max_size,  noise_model=noise_model, RGB=RGB, iou_threshold=iou_threshold, slice_merge=slice_merge, dounet=dounet)
-            print('should return', res)      
-    if len(image.shape) == 3 and 'T' in axes:
+            print("I am here")
+            res = VollSeg_unet(
+                image,
+                unet_model=unet_model,
+                roi_model=roi_model,
+                n_tiles=n_tiles,
+                axes=axes,
+                min_size_mask=min_size_mask,
+                max_size=max_size,
+                noise_model=noise_model,
+                RGB=RGB,
+                iou_threshold=iou_threshold,
+                slice_merge=slice_merge,
+                dounet=dounet,
+            )
+            print("should return", res)
+    if len(image.shape) == 3 and "T" in axes:
         if len(n_tiles) == 3:
             n_tiles = (n_tiles[1], n_tiles[2])
         if star_model is not None:
             res = tuple(
                 zip(
-                    *tuple(VollSeg2D(_x, unet_model, star_model, noise_model=noise_model, roi_model=roi_model,  prob_thresh=prob_thresh, nms_thresh=nms_thresh, donormalize=donormalize, lower_perc=lower_perc, upper_perc=upper_perc, axes=axes, min_size_mask=min_size_mask, min_size=min_size,
-                                     max_size=max_size, dounet=dounet, n_tiles=n_tiles, UseProbability=UseProbability, RGB=RGB) for _x in tqdm(image))))
+                    *tuple(
+                        VollSeg2D(
+                            _x,
+                            unet_model,
+                            star_model,
+                            noise_model=noise_model,
+                            roi_model=roi_model,
+                            prob_thresh=prob_thresh,
+                            nms_thresh=nms_thresh,
+                            donormalize=donormalize,
+                            lower_perc=lower_perc,
+                            upper_perc=upper_perc,
+                            axes=axes,
+                            min_size_mask=min_size_mask,
+                            min_size=min_size,
+                            max_size=max_size,
+                            dounet=dounet,
+                            n_tiles=n_tiles,
+                            UseProbability=UseProbability,
+                            RGB=RGB,
+                        )
+                        for _x in tqdm(image)
+                    )
+                )
+            )
         if star_model is None:
 
-            res = tuple(zip(*tuple(VollSeg_unet(_x, unet_model=unet_model, roi_model=roi_model, n_tiles=n_tiles, axes=axes, noise_model=noise_model, RGB=RGB, iou_threshold=iou_threshold, slice_merge=slice_merge, dounet=dounet)
-                                   for _x in tqdm(image))))
+            res = tuple(
+                zip(
+                    *tuple(
+                        VollSeg_unet(
+                            _x,
+                            unet_model=unet_model,
+                            roi_model=roi_model,
+                            n_tiles=n_tiles,
+                            axes=axes,
+                            noise_model=noise_model,
+                            RGB=RGB,
+                            iou_threshold=iou_threshold,
+                            slice_merge=slice_merge,
+                            dounet=dounet,
+                        )
+                        for _x in tqdm(image)
+                    )
+                )
+            )
 
     if len(image.shape) == 4:
         if len(n_tiles) == 4:
             n_tiles = (n_tiles[1], n_tiles[2], n_tiles[3])
         res = tuple(
             zip(
-                *tuple(VollSeg3D(_x,  unet_model, star_model, axes=axes, noise_model=noise_model, roi_model=roi_model,  prob_thresh=prob_thresh, nms_thresh=nms_thresh, donormalize=donormalize, lower_perc=lower_perc, upper_perc=upper_perc, min_size_mask=min_size_mask, min_size=min_size, max_size=max_size,
-                                 n_tiles=n_tiles, UseProbability=UseProbability, globalthreshold=globalthreshold, extent=extent,
-                                 dounet=dounet, seedpool=seedpool, startZ=startZ, slice_merge=slice_merge, iou_threshold=iou_threshold, unet_mask=unet_mask) for _x in tqdm(image))))
+                *tuple(
+                    VollSeg3D(
+                        _x,
+                        unet_model,
+                        star_model,
+                        axes=axes,
+                        noise_model=noise_model,
+                        roi_model=roi_model,
+                        prob_thresh=prob_thresh,
+                        nms_thresh=nms_thresh,
+                        donormalize=donormalize,
+                        lower_perc=lower_perc,
+                        upper_perc=upper_perc,
+                        min_size_mask=min_size_mask,
+                        min_size=min_size,
+                        max_size=max_size,
+                        n_tiles=n_tiles,
+                        UseProbability=UseProbability,
+                        globalthreshold=globalthreshold,
+                        extent=extent,
+                        dounet=dounet,
+                        seedpool=seedpool,
+                        startZ=startZ,
+                        slice_merge=slice_merge,
+                        iou_threshold=iou_threshold,
+                        unet_mask=unet_mask,
+                    )
+                    for _x in tqdm(image)
+                )
+            )
+        )
 
-    if noise_model is None and star_model is not None and  roi_model is not None:
+    if noise_model is None and star_model is not None and roi_model is not None:
         Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton, roi_image = res
 
-    if noise_model is None and star_model is not None and  roi_model is None:
-        Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton = res    
+    if noise_model is None and star_model is not None and roi_model is None:
+        Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton = res
 
-    elif noise_model is not None and star_model is not None and  roi_model is not None:
-        Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton,  image, roi_image = res
+    elif noise_model is not None and star_model is not None and roi_model is not None:
+        Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton, image, roi_image = res
 
-    elif noise_model is not None and star_model is not None and  roi_model is None:
-        Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton,  image = res    
+    elif noise_model is not None and star_model is not None and roi_model is None:
+        Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton, image = res
     elif noise_model is not None and star_model is None and roi_model is None and unet_model is None:
-
-         SizedMask, Skeleton, image = res
-   
-    
-    elif star_model is None and  roi_model is None and unet_model is not None and noise_model is not None :
 
         SizedMask, Skeleton, image = res
 
-    elif star_model is None and  roi_model is not None and unet_model is not None and noise_model is not None :
+    elif star_model is None and roi_model is None and unet_model is not None and noise_model is not None:
 
-        SizedMask, Skeleton, image = res    
+        SizedMask, Skeleton, image = res
 
-    elif star_model is None and  roi_model is None and unet_model is not None and noise_model is None :
+    elif star_model is None and roi_model is not None and unet_model is not None and noise_model is not None:
 
-        SizedMask, Skeleton, image = res    
+        SizedMask, Skeleton, image = res
 
-    elif star_model is None and  roi_model is not None and unet_model is None and noise_model is None :
+    elif star_model is None and roi_model is None and unet_model is not None and noise_model is None:
+
+        SizedMask, Skeleton, image = res
+
+    elif star_model is None and roi_model is not None and unet_model is None and noise_model is None:
 
         roi_image, Skeleton, image = res
         SizedMask = roi_image
 
-    elif star_model is None and  roi_model is not None and unet_model is None and noise_model is not None :
+    elif star_model is None and roi_model is not None and unet_model is None and noise_model is not None:
 
         roi_image, Skeleton, image = res
-        SizedMask = roi_image    
+        SizedMask = roi_image
 
-    elif star_model is None and  roi_model is not None and unet_model is not None and noise_model is None :
+    elif star_model is None and roi_model is not None and unet_model is not None and noise_model is None:
 
         roi_image, Skeleton, image = res
         SizedMask = roi_image
 
     if save_dir is not None:
-        print('Saving Results ...')
+        print("Saving Results ...")
         Path(save_dir).mkdir(exist_ok=True)
 
-        if  roi_model is not None:
-            roi_results = save_dir + 'Roi/'
+        if roi_model is not None:
+            roi_results = save_dir + "Roi/"
             Path(roi_results).mkdir(exist_ok=True)
-            imwrite((roi_results + Name + '.tif'),
-                    roi_image.astype('uint16'))
+            imwrite((roi_results + Name + ".tif"), roi_image.astype("uint16"))
 
         if unet_model is not None:
-            unet_results = save_dir + 'BinaryMask/'
-            skel_unet_results = save_dir + 'Skeleton/'
+            unet_results = save_dir + "BinaryMask/"
+            skel_unet_results = save_dir + "Skeleton/"
             Path(unet_results).mkdir(exist_ok=True)
             Path(skel_unet_results).mkdir(exist_ok=True)
-             
-            imwrite((unet_results + Name + '.tif'),
-                    SizedMask.astype('uint16'))
-            imwrite((skel_unet_results + Name + '.tif'),
-                    Skeleton.astype('uint16'))        
+
+            imwrite((unet_results + Name + ".tif"), SizedMask.astype("uint16"))
+            imwrite((skel_unet_results + Name + ".tif"), Skeleton.astype("uint16"))
         if star_model is not None:
-            vollseg_results = save_dir + 'VollSeg/'
-            stardist_results = save_dir + 'StarDist/'
-            probability_results = save_dir + 'Probability/'
-            marker_results = save_dir + 'Markers/'
-            skel_results = save_dir + 'Skeleton/'
+            vollseg_results = save_dir + "VollSeg/"
+            stardist_results = save_dir + "StarDist/"
+            probability_results = save_dir + "Probability/"
+            marker_results = save_dir + "Markers/"
+            skel_results = save_dir + "Skeleton/"
             Path(skel_results).mkdir(exist_ok=True)
             Path(vollseg_results).mkdir(exist_ok=True)
             Path(stardist_results).mkdir(exist_ok=True)
             Path(probability_results).mkdir(exist_ok=True)
             Path(marker_results).mkdir(exist_ok=True)
-            imwrite((stardist_results + Name + '.tif'),
-                    star_labels.astype('uint16'))
-            imwrite((vollseg_results + Name + '.tif'),
-                    Sizedsmart_seeds.astype('uint16'))
-            imwrite((probability_results + Name + '.tif'),
-                    proabability_map.astype('float32'))
-            imwrite((marker_results + Name + '.tif'),
-                    Markers.astype('uint16'))
-            imwrite((skel_results + Name + '.tif'), Skeleton)
+            imwrite((stardist_results + Name + ".tif"), star_labels.astype("uint16"))
+            imwrite((vollseg_results + Name + ".tif"), Sizedsmart_seeds.astype("uint16"))
+            imwrite((probability_results + Name + ".tif"), proabability_map.astype("float32"))
+            imwrite((marker_results + Name + ".tif"), Markers.astype("uint16"))
+            imwrite((skel_results + Name + ".tif"), Skeleton)
         if noise_model is not None:
-            denoised_results = save_dir + 'Denoised/'
+            denoised_results = save_dir + "Denoised/"
             Path(denoised_results).mkdir(exist_ok=True)
-            imwrite((denoised_results + Name + '.tif'),
-                    image.astype('float32'))
+            imwrite((denoised_results + Name + ".tif"), image.astype("float32"))
 
-      
     # If denoising is not done but stardist and unet models are supplied we return the stardist, vollseg and semantic segmentation maps
-    if noise_model is None and star_model is not None and  roi_model is not None:
+    if noise_model is None and star_model is not None and roi_model is not None:
 
         return Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton, roi_image
 
-    elif noise_model is None and star_model is not None and  roi_model is  None:
+    elif noise_model is None and star_model is not None and roi_model is None:
 
-        return Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton    
+        return Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton
 
     # If denoising is done and stardist and unet models are supplied we return the stardist, vollseg, denoised image and semantic segmentation maps
-    elif noise_model is not None and star_model is not None and  roi_model is not None:
-      
-        return Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton,  image, roi_image
+    elif noise_model is not None and star_model is not None and roi_model is not None:
 
-    elif noise_model is not None and star_model is not None and  roi_model is None:
+        return Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton, image, roi_image
 
-        return Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton,  image    
+    elif noise_model is not None and star_model is not None and roi_model is None:
+
+        return Sizedsmart_seeds, SizedMask, star_labels, proabability_map, Markers, Skeleton, image
 
     # If the stardist model is not supplied but only the unet and noise model we return the denoised result and the semantic segmentation map
-    elif star_model is None and  roi_model is not None and noise_model is not None:
+    elif star_model is None and roi_model is not None and noise_model is not None:
 
         return SizedMask, Skeleton, image
 
-    elif star_model is None and  roi_model is not None and noise_model is None:
+    elif star_model is None and roi_model is not None and noise_model is None:
 
-        return  roi_image.astype('uint16')  , Skeleton, image 
+        return roi_image.astype("uint16"), Skeleton, image
 
-    elif star_model is None and  roi_model is not None and noise_model is not None:
+    elif star_model is None and roi_model is not None and noise_model is not None:
 
-        return  roi_image.astype('uint16')  , Skeleton, image     
-    
+        return roi_image.astype("uint16"), Skeleton, image
+
     elif noise_model is not None and star_model is None and roi_model is None and unet_model is None:
-            
-            return  SizedMask , Skeleton, image
-                  
 
-    
+        return SizedMask, Skeleton, image
 
-    elif star_model is None and  roi_model is  None and noise_model is None and unet_model is not None:
+    elif star_model is None and roi_model is None and noise_model is None and unet_model is not None:
 
-        return SizedMask, Skeleton, image 
+        return SizedMask, Skeleton, image
 
 
-def VollSeg3D(image,  unet_model, star_model, axes='ZYX', noise_model=None, roi_model=None, prob_thresh=None, nms_thresh=None, min_size_mask=100, min_size=100, max_size=10000000,
-              n_tiles=(1, 2, 2), UseProbability=True, globalthreshold=0.2, extent=0, dounet=True, seedpool=True, donormalize=True, lower_perc=1, upper_perc=99.8, startZ=0, slice_merge=False, iou_threshold=0.3, unet_mask=None):
+def VollSeg3D(
+    image,
+    unet_model,
+    star_model,
+    axes="ZYX",
+    noise_model=None,
+    roi_model=None,
+    prob_thresh=None,
+    nms_thresh=None,
+    min_size_mask=100,
+    min_size=100,
+    max_size=10000000,
+    n_tiles=(1, 2, 2),
+    UseProbability=True,
+    globalthreshold=0.2,
+    extent=0,
+    dounet=True,
+    seedpool=True,
+    donormalize=True,
+    lower_perc=1,
+    upper_perc=99.8,
+    startZ=0,
+    slice_merge=False,
+    iou_threshold=0.3,
+    unet_mask=None,
+):
 
-   
-
-    print('Generating VollSeg results')
+    print("Generating VollSeg results")
     sizeZ = image.shape[0]
     sizeY = image.shape[1]
     sizeX = image.shape[2]
     if len(n_tiles) >= len(image.shape):
-                n_tiles = (n_tiles[-3],n_tiles[-2], n_tiles[-1])
+        n_tiles = (n_tiles[-3], n_tiles[-2], n_tiles[-1])
     else:
-                tiles = n_tiles
-    SizedMask = np.zeros([sizeZ, sizeY, sizeX], dtype='uint16')
-    Sizedsmart_seeds = np.zeros([sizeZ, sizeY, sizeX], dtype='uint16')
-    Sizedproabability_map = np.zeros([sizeZ, sizeY, sizeX], dtype='float32')
-    Sizedmarkers = np.zeros([sizeZ, sizeY, sizeX], dtype='uint16')
-    Sizedstardist = np.zeros([sizeZ, sizeY, sizeX], dtype='uint16')
+        tiles = n_tiles
+    SizedMask = np.zeros([sizeZ, sizeY, sizeX], dtype="uint16")
+    Sizedsmart_seeds = np.zeros([sizeZ, sizeY, sizeX], dtype="uint16")
+    Sizedproabability_map = np.zeros([sizeZ, sizeY, sizeX], dtype="float32")
+    Sizedmarkers = np.zeros([sizeZ, sizeY, sizeX], dtype="uint16")
+    Sizedstardist = np.zeros([sizeZ, sizeY, sizeX], dtype="uint16")
     Mask = None
     Mask_patch = None
     roi_image = None
     if noise_model is not None:
-        print('Denoising Image')
+        print("Denoising Image")
 
-        image = noise_model.predict(image.astype('float32'), axes=axes, n_tiles=n_tiles)
+        image = noise_model.predict(image.astype("float32"), axes=axes, n_tiles=n_tiles)
         indices = zip(*np.where(image < 0))
         for z, y, x in indices:
             image[z, y, x] = 0
@@ -1289,20 +1585,17 @@ def VollSeg3D(image,  unet_model, star_model, axes='ZYX', noise_model=None, roi_
             else:
                 tiles = n_tiles
             maximage = np.amax(image, axis=0)
-            roi_image = UNETPrediction3D(
-                maximage, roi_model, tiles, 'YX', iou_threshold=nms_thresh)
+            roi_image = UNETPrediction3D(maximage, roi_model, tiles, "YX", iou_threshold=nms_thresh)
             roi_bbox = Bbox_region(roi_image)
             if roi_bbox is not None:
                 rowstart = roi_bbox[0]
                 colstart = roi_bbox[1]
                 endrow = roi_bbox[2]
                 endcol = roi_bbox[3]
-                region = (slice(0, image.shape[0]), slice(rowstart, endrow),
-                        slice(colstart, endcol))
+                region = (slice(0, image.shape[0]), slice(rowstart, endrow), slice(colstart, endcol))
         elif model_dim == len(image.shape):
-            roi_image = UNETPrediction3D(
-                image, roi_model, n_tiles, axes)
-          
+            roi_image = UNETPrediction3D(image, roi_model, n_tiles, axes)
+
             roi_bbox = Bbox_region(roi_image)
             if roi_bbox is not None:
                 zstart = roi_bbox[0]
@@ -1311,19 +1604,17 @@ def VollSeg3D(image,  unet_model, star_model, axes='ZYX', noise_model=None, roi_
                 zend = roi_bbox[3]
                 endrow = roi_bbox[4]
                 endcol = roi_bbox[5]
-                region = (slice(zstart, zend), slice(rowstart, endrow),
-                        slice(colstart, endcol))
+                region = (slice(zstart, zend), slice(rowstart, endrow), slice(colstart, endcol))
         # The actual pixels in that region.
         if roi_bbox is not None:
             patch = image[region]
         else:
-            patch = image        
+            patch = image
 
     else:
 
         patch = image
-        region = (slice(0, image.shape[0]), slice(0, image.shape[1]),
-                  slice(0, image.shape[2]))
+        region = (slice(0, image.shape[0]), slice(0, image.shape[1]), slice(0, image.shape[2]))
         rowstart = 0
         colstart = 0
         endrow = image.shape[2]
@@ -1331,29 +1622,28 @@ def VollSeg3D(image,  unet_model, star_model, axes='ZYX', noise_model=None, roi_
         roi_bbox = [colstart, rowstart, endcol, endrow]
 
     if dounet:
-        
+
         if unet_model is not None or unet_mask is not None:
-            print('UNET segmentation on Image',  patch.shape)
-            
+            print("UNET segmentation on Image", patch.shape)
+
             if unet_mask is not None:
                 Mask = unet_mask
             else:
-                Mask = UNETPrediction3D(patch, unet_model, n_tiles, axes,
-                                        iou_threshold=iou_threshold, slice_merge=slice_merge)
-            
+                Mask = UNETPrediction3D(
+                    patch, unet_model, n_tiles, axes, iou_threshold=iou_threshold, slice_merge=slice_merge
+                )
+
                 for i in range(0, Mask.shape[0]):
-                        Mask[i, :] = remove_small_objects(
-                                Mask[i, :].astype('uint16'), min_size=min_size_mask)
-                        Mask[i, :] = remove_big_objects(
-                                Mask[i, :].astype('uint16'), max_size=max_size)
-            
+                    Mask[i, :] = remove_small_objects(Mask[i, :].astype("uint16"), min_size=min_size_mask)
+                    Mask[i, :] = remove_big_objects(Mask[i, :].astype("uint16"), max_size=max_size)
+
             Mask_patch = Mask.copy()
             Mask = Region_embedding(image, roi_bbox, Mask)
             if slice_merge:
-                Mask = match_labels(Mask.astype('uint16'), iou_threshold=iou_threshold)
+                Mask = match_labels(Mask.astype("uint16"), iou_threshold=iou_threshold)
             else:
                 Mask = label(Mask > 0)
-            SizedMask[:, :Mask.shape[1], :Mask.shape[2]] = Mask
+            SizedMask[:, : Mask.shape[1], : Mask.shape[2]] = Mask
 
     elif noise_model is not None and dounet == False:
 
@@ -1374,80 +1664,115 @@ def VollSeg3D(image,  unet_model, star_model, axes='ZYX', noise_model=None, roi_
             Mask[i, :] = regions > 0
             Mask[i, :] = label(Mask[i, :])
 
-            Mask[i, :] = remove_small_objects(
-                Mask[i, :].astype('uint16'), min_size=min_size_mask)
-            Mask[i, :] = remove_big_objects(
-                Mask[i, :].astype('uint16'), max_size=max_size)
+            Mask[i, :] = remove_small_objects(Mask[i, :].astype("uint16"), min_size=min_size_mask)
+            Mask[i, :] = remove_big_objects(Mask[i, :].astype("uint16"), max_size=max_size)
         if slice_merge:
             Mask = match_labels(Mask, iou_threshold=iou_threshold)
         else:
             Mask = label(Mask > 0)
-        Mask_patch = Mask.copy()    
+        Mask_patch = Mask.copy()
         Mask = Region_embedding(image, roi_bbox, Mask)
-        SizedMask[:, :Mask.shape[1], :Mask.shape[2]] = Mask
-    
+        SizedMask[:, : Mask.shape[1], : Mask.shape[2]] = Mask
+
     if star_model is not None:
-            print('Stardist segmentation on Image')
-            if donormalize:
-                patch_star = normalize(patch, lower_perc, upper_perc, axis= (0,1,2)) 
-            else:
-                patch_star = patch
+        print("Stardist segmentation on Image")
+        if donormalize:
+            patch_star = normalize(patch, lower_perc, upper_perc, axis=(0, 1, 2))
+        else:
+            patch_star = patch
 
-            smart_seeds, proabability_map, star_labels, Markers = STARPrediction3D(
-                patch_star, axes, star_model,  n_tiles, unet_mask=Mask_patch, UseProbability=UseProbability, globalthreshold=globalthreshold, extent=extent, seedpool=seedpool, prob_thresh=prob_thresh, nms_thresh=nms_thresh)
-            
-            print('Removing small/large objects')
-            for i in tqdm(range(0, smart_seeds.shape[0])):
-                smart_seeds[i, :] = remove_small_objects(
-                    smart_seeds[i, :].astype('uint16'), min_size=min_size)
-                smart_seeds[i, :] = remove_big_objects(
-                    smart_seeds[i, :].astype('uint16'), max_size=max_size)
-            smart_seeds = fill_label_holes(smart_seeds.astype('uint16'))
-            if startZ > 0:
-                smart_seeds[0:startZ, :, :] = 0
-            smart_seeds = Region_embedding(image, roi_bbox, smart_seeds)
-            Sizedsmart_seeds[:, :smart_seeds.shape[1],
-                            :smart_seeds.shape[2]] = smart_seeds
-            Markers = Region_embedding(image, roi_bbox, Markers)
-            Sizedmarkers[:, :smart_seeds.shape[1],
-                        :smart_seeds.shape[2]] = Markers
-            proabability_map = Region_embedding(image, roi_bbox, proabability_map)
-            Sizedproabability_map[:, :proabability_map.shape[1],
-                                :proabability_map.shape[2]] = proabability_map
-            star_labels = Region_embedding(image, roi_bbox, star_labels)
-            Sizedstardist[:, :star_labels.shape[1],
-                        :star_labels.shape[2]] = star_labels
-            Skeleton = np.zeros_like(Sizedsmart_seeds)
-            for i in range(0, Sizedsmart_seeds.shape[0]):
-                Skeleton[i, :] = SmartSkel(Sizedsmart_seeds[i, :],
-                                        Sizedproabability_map[i, :])
-            Skeleton = Skeleton > 0
+        smart_seeds, proabability_map, star_labels, Markers = STARPrediction3D(
+            patch_star,
+            axes,
+            star_model,
+            n_tiles,
+            unet_mask=Mask_patch,
+            UseProbability=UseProbability,
+            globalthreshold=globalthreshold,
+            extent=extent,
+            seedpool=seedpool,
+            prob_thresh=prob_thresh,
+            nms_thresh=nms_thresh,
+        )
 
-   
+        print("Removing small/large objects")
+        for i in tqdm(range(0, smart_seeds.shape[0])):
+            smart_seeds[i, :] = remove_small_objects(smart_seeds[i, :].astype("uint16"), min_size=min_size)
+            smart_seeds[i, :] = remove_big_objects(smart_seeds[i, :].astype("uint16"), max_size=max_size)
+        smart_seeds = fill_label_holes(smart_seeds.astype("uint16"))
+        if startZ > 0:
+            smart_seeds[0:startZ, :, :] = 0
+        smart_seeds = Region_embedding(image, roi_bbox, smart_seeds)
+        Sizedsmart_seeds[:, : smart_seeds.shape[1], : smart_seeds.shape[2]] = smart_seeds
+        Markers = Region_embedding(image, roi_bbox, Markers)
+        Sizedmarkers[:, : smart_seeds.shape[1], : smart_seeds.shape[2]] = Markers
+        proabability_map = Region_embedding(image, roi_bbox, proabability_map)
+        Sizedproabability_map[:, : proabability_map.shape[1], : proabability_map.shape[2]] = proabability_map
+        star_labels = Region_embedding(image, roi_bbox, star_labels)
+        Sizedstardist[:, : star_labels.shape[1], : star_labels.shape[2]] = star_labels
+        Skeleton = np.zeros_like(Sizedsmart_seeds)
+        for i in range(0, Sizedsmart_seeds.shape[0]):
+            Skeleton[i, :] = SmartSkel(Sizedsmart_seeds[i, :], Sizedproabability_map[i, :])
+        Skeleton = Skeleton > 0
+
     if noise_model == None and roi_image is not None and star_model is not None:
-        return Sizedsmart_seeds.astype('uint16'), SizedMask.astype('uint16'), star_labels.astype('uint16'), proabability_map, Markers.astype('uint16'), Skeleton.astype('uint16'), roi_image.astype('uint16')
+        return (
+            Sizedsmart_seeds.astype("uint16"),
+            SizedMask.astype("uint16"),
+            star_labels.astype("uint16"),
+            proabability_map,
+            Markers.astype("uint16"),
+            Skeleton.astype("uint16"),
+            roi_image.astype("uint16"),
+        )
     if noise_model == None and roi_image is None and star_model is not None:
-        return Sizedsmart_seeds.astype('uint16'), SizedMask.astype('uint16'), star_labels.astype('uint16'), proabability_map, Markers.astype('uint16'), Skeleton.astype('uint16')    
+        return (
+            Sizedsmart_seeds.astype("uint16"),
+            SizedMask.astype("uint16"),
+            star_labels.astype("uint16"),
+            proabability_map,
+            Markers.astype("uint16"),
+            Skeleton.astype("uint16"),
+        )
     if noise_model is not None and roi_image is None and star_model is not None:
-        return Sizedsmart_seeds.astype('uint16'), SizedMask.astype('uint16'), star_labels.astype('uint16'), proabability_map, Markers.astype('uint16'), Skeleton.astype('uint16'),  image
+        return (
+            Sizedsmart_seeds.astype("uint16"),
+            SizedMask.astype("uint16"),
+            star_labels.astype("uint16"),
+            proabability_map,
+            Markers.astype("uint16"),
+            Skeleton.astype("uint16"),
+            image,
+        )
     if noise_model is not None and roi_image is not None and star_model is not None:
-        return Sizedsmart_seeds.astype('uint16'), SizedMask.astype('uint16'), star_labels.astype('uint16'), proabability_map, Markers.astype('uint16'), Skeleton.astype('uint16'),  image, roi_image.astype('uint16')
-    
+        return (
+            Sizedsmart_seeds.astype("uint16"),
+            SizedMask.astype("uint16"),
+            star_labels.astype("uint16"),
+            proabability_map,
+            Markers.astype("uint16"),
+            Skeleton.astype("uint16"),
+            image,
+            roi_image.astype("uint16"),
+        )
+
     if noise_model is not None and roi_image is not None and star_model is None:
-        return  SizedMask.astype('uint16'), Skeleton, image
-    
+        return SizedMask.astype("uint16"), Skeleton, image
+
     if noise_model is not None and roi_image is None and star_model is None and unet_model is None:
-         return SizedMask.astype('uint16'), Skeleton, image
+        return SizedMask.astype("uint16"), Skeleton, image
 
     if noise_model is None and roi_image is None and star_model is None and unet_model is not None:
-         return SizedMask.astype('uint16'), Skeleton, image
+        return SizedMask.astype("uint16"), Skeleton, image
 
-           
+
 def image_pixel_duplicator(image, size):
 
-    assert len(image.shape) == len(size), f'The provided size {len(size)} should match the image dimensions {len(image.shape)}'
+    assert len(image.shape) == len(
+        size
+    ), f"The provided size {len(size)} should match the image dimensions {len(image.shape)}"
     for i in range(len(size)):
-       assert image.shape[i] <= size[i] , f'The image size should be smaller than the volume it is to be extended in'
+        assert image.shape[i] <= size[i], f"The image size should be smaller than the volume it is to be extended in"
 
     ResizeImage = np.zeros(size)
     ndim = len(size)
@@ -1455,83 +1780,87 @@ def image_pixel_duplicator(image, size):
 
         j = 0
         for i in range(0, ResizeImage.shape[1]):
-            
+
             if j < image.shape[1]:
-                ResizeImage[:image.shape[0],i,:image.shape[2]] = image[:image.shape[0],j,:image.shape[2]]
+                ResizeImage[: image.shape[0], i, : image.shape[2]] = image[: image.shape[0], j, : image.shape[2]]
                 j = j + 1
             else:
-                j = 0   
-            
+                j = 0
+
         j = 0
         for i in range(0, ResizeImage.shape[2]):
-            
+
             if j < image.shape[2]:
-                ResizeImage[:,:,i] = ResizeImage[:,:,j]
+                ResizeImage[:, :, i] = ResizeImage[:, :, j]
                 j = j + 1
             else:
-                j = 0     
+                j = 0
 
         j = 0
         for i in range(0, ResizeImage.shape[0]):
-            
+
             if j < image.shape[0]:
-                ResizeImage[i,:,:] = ResizeImage[j,:,:]
+                ResizeImage[i, :, :] = ResizeImage[j, :, :]
                 j = j + 1
             else:
-                j = 0  
+                j = 0
 
     if ndim == 2:
 
         j = 0
         for i in range(0, ResizeImage.shape[1]):
-            
+
             if j < image.shape[1]:
-                ResizeImage[:image.shape[0],i] = image[:image.shape[0],j]
+                ResizeImage[: image.shape[0], i] = image[: image.shape[0], j]
                 j = j + 1
             else:
-                j = 0   
-            
-
+                j = 0
 
         j = 0
         for i in range(0, ResizeImage.shape[0]):
-            
+
             if j < image.shape[0]:
-                ResizeImage[i,:] = ResizeImage[j,:]
+                ResizeImage[i, :] = ResizeImage[j, :]
                 j = j + 1
             else:
-                j = 0  
+                j = 0
 
     return ResizeImage
 
+
 def image_embedding(image, size):
 
-    
     ndim = len(image.shape)
     if ndim == 2:
-        assert len(image.shape) == len(size), f'The provided size {len(size)} should match the image dimensions {len(image.shape)}'
+        assert len(image.shape) == len(
+            size
+        ), f"The provided size {len(size)} should match the image dimensions {len(image.shape)}"
         for i in range(len(size)):
-          assert image.shape[i] <= size[i] , f'The image size should be smaller than the volume it is to be embedded in'
-          width = []
-          for i in range(len(size)):
+            assert (
+                image.shape[i] <= size[i]
+            ), f"The image size should be smaller than the volume it is to be embedded in"
+            width = []
+            for i in range(len(size)):
                 width.append(size[i] - image.shape[i])
-          width = np.asarray(width)
-    
-          ResizeImage = np.pad(image, width, 'constant', constant_values = 0)
+            width = np.asarray(width)
+
+            ResizeImage = np.pad(image, width, "constant", constant_values=0)
     if ndim == 3:
         ResizeImage = []
         width = []
         for i in range(len(size)):
-                width.append(size[i] - image.shape[i + 1])
+            width.append(size[i] - image.shape[i + 1])
         width = np.asarray(width)
         for i in range(image.shape[0]):
-             
-           ResizeImage.append(np.pad(image[i,:], width, 'constant', constant_values = 0))   
+
+            ResizeImage.append(np.pad(image[i, :], width, "constant", constant_values=0))
         ResizeImage = np.asarray(ResizeImage)
     return ResizeImage
+
+
 def Integer_to_border(Label):
 
-    BoundaryLabel = find_boundaries(Label, mode='outer')
+    BoundaryLabel = find_boundaries(Label, mode="outer")
 
     Binary = BoundaryLabel > 0
 
@@ -1541,17 +1870,16 @@ def Integer_to_border(Label):
 def DownsampleData(image, DownsampleFactor):
 
     if DownsampleFactor != 1:
-        print('Downsampling Image in XY by', DownsampleFactor)
+        print("Downsampling Image in XY by", DownsampleFactor)
         # percent of original size
-        scale_percent = int(100/DownsampleFactor)
+        scale_percent = int(100 / DownsampleFactor)
         width = int(image.shape[2] * scale_percent / 100)
         height = int(image.shape[1] * scale_percent / 100)
         dim = (width, height)
-        smallimage = np.zeros([image.shape[0],  height, width])
+        smallimage = np.zeros([image.shape[0], height, width])
         for i in range(0, image.shape[0]):
             # resize image
-            smallimage[i, :] = cv2.resize(
-                image[i, :].astype('float32'), dim)
+            smallimage[i, :] = cv2.resize(image[i, :].astype("float32"), dim)
 
         return smallimage
     else:
@@ -1561,7 +1889,7 @@ def DownsampleData(image, DownsampleFactor):
 
 def SuperUNETPrediction(image, model, n_tiles, axis):
 
-    Segmented = model.predict(image.astype('float32'), axis, n_tiles=n_tiles)
+    Segmented = model.predict(image.astype("float32"), axis, n_tiles=n_tiles)
 
     try:
         thresholds = threshold_multiotsu(Segmented, classes=4)
@@ -1585,20 +1913,19 @@ def merge_labels_across_volume(labelvol, relabelfunc, threshold=3):
     res = np.zeros_like(labelvol)
     res[0, ...] = labelvol[0, ...]
     backup = labelvol.copy()  # kapoors code modifies the input array
-    for i in tqdm(range(nz-1)):
+    for i in tqdm(range(nz - 1)):
 
-        res[i+1, ...] = relabelfunc(res[i, ...],
-                                    labelvol[i+1, ...], threshold=threshold)
+        res[i + 1, ...] = relabelfunc(res[i, ...], labelvol[i + 1, ...], threshold=threshold)
         labelvol = backup.copy()  # restore the input array
-    res = res.astype('uint16')
+    res = res.astype("uint16")
     return res
 
 
 def RelabelZ(previousImage, currentImage, threshold):
 
-    currentImage = currentImage.astype('uint16')
+    currentImage = currentImage.astype("uint16")
     relabelimage = currentImage
-    previousImage = previousImage.astype('uint16')
+    previousImage = previousImage.astype("uint16")
     waterproperties = measure.regionprops(previousImage)
     indices = [prop.centroid for prop in waterproperties]
     if len(indices) > 0:
@@ -1611,56 +1938,62 @@ def RelabelZ(previousImage, currentImage, threshold):
                 currentlabel = currentImage[int(index[0]), int(index[1])]
                 if currentlabel > 0:
                     previouspoint = tree.query(index)
-                    previouslabel = previousImage[int(indices[previouspoint[1]][0]), int(
-                        indices[previouspoint[1]][1])]
+                    previouslabel = previousImage[int(indices[previouspoint[1]][0]), int(indices[previouspoint[1]][1])]
                     if previouspoint[0] > threshold:
-                        relabelimage[np.where(
-                            currentImage == currentlabel)] = currentlabel
+                        relabelimage[np.where(currentImage == currentlabel)] = currentlabel
                     else:
-                        relabelimage[np.where(
-                            currentImage == currentlabel)] = previouslabel
+                        relabelimage[np.where(currentImage == currentlabel)] = previouslabel
     return relabelimage
 
 
-def SuperSTARPrediction(image, model, n_tiles, unet_mask=None, OverAllunet_mask=None, UseProbability=True, prob_thresh=None, nms_thresh=None):
-
+def SuperSTARPrediction(
+    image,
+    model,
+    n_tiles,
+    unet_mask=None,
+    OverAllunet_mask=None,
+    UseProbability=True,
+    prob_thresh=None,
+    nms_thresh=None,
+):
 
     shape = [image.shape[0], image.shape[1]]
 
     if prob_thresh is not None and nms_thresh is not None:
 
-        MidImage,  SmallProbability, SmallDistance = model.predict_vollseg(
-            image.astype('float32'), n_tiles=n_tiles, prob_thresh=prob_thresh, nms_thresh=nms_thresh)
+        MidImage, SmallProbability, SmallDistance = model.predict_vollseg(
+            image.astype("float32"), n_tiles=n_tiles, prob_thresh=prob_thresh, nms_thresh=nms_thresh
+        )
     else:
-        MidImage,  SmallProbability, SmallDistance = model.predict_vollseg(
-            image.astype('float32'), n_tiles=n_tiles)
+        MidImage, SmallProbability, SmallDistance = model.predict_vollseg(image.astype("float32"), n_tiles=n_tiles)
 
-    star_labels = MidImage[:shape[0], :shape[1]]
+    star_labels = MidImage[: shape[0], : shape[1]]
 
     grid = model.config.grid
-    Probability = cv2.resize(SmallProbability, dsize=(
-        SmallProbability.shape[1] * grid[1], SmallProbability.shape[0] * grid[0]))
+    Probability = cv2.resize(
+        SmallProbability, dsize=(SmallProbability.shape[1] * grid[1], SmallProbability.shape[0] * grid[0])
+    )
     Distance = MaxProjectDist(SmallDistance, axis=-1)
-    Distance = cv2.resize(Distance, dsize=(
-        Distance.shape[1] * grid[1], Distance.shape[0] * grid[0]))
+    Distance = cv2.resize(Distance, dsize=(Distance.shape[1] * grid[1], Distance.shape[0] * grid[0]))
     if UseProbability:
 
-        MaxProjectDistance = Probability[:shape[0], :shape[1]]
+        MaxProjectDistance = Probability[: shape[0], : shape[1]]
 
     else:
 
-        MaxProjectDistance = Distance[:shape[0], :shape[1]]
+        MaxProjectDistance = Distance[: shape[0], : shape[1]]
 
     if OverAllunet_mask is None:
         OverAllunet_mask = unet_mask
-    if OverAllunet_mask is not None:    
-       OverAllunet_mask = CleanMask(star_labels, OverAllunet_mask)
+    if OverAllunet_mask is not None:
+        OverAllunet_mask = CleanMask(star_labels, OverAllunet_mask)
 
     if unet_mask is None:
         unet_mask = star_labels > 0
     Watershed, Markers = SuperWatershedwithMask(
-        MaxProjectDistance, star_labels.astype('uint16'), unet_mask.astype('uint16'))
-    Watershed = fill_label_holes(Watershed.astype('uint16'))
+        MaxProjectDistance, star_labels.astype("uint16"), unet_mask.astype("uint16")
+    )
+    Watershed = fill_label_holes(Watershed.astype("uint16"))
 
     return Watershed, Markers, star_labels, MaxProjectDistance
 
@@ -1669,14 +2002,14 @@ def CleanMask(star_labels, OverAllunet_mask):
     OverAllunet_mask = np.logical_or(OverAllunet_mask > 0, star_labels > 0)
     OverAllunet_mask = binary_erosion(OverAllunet_mask)
     OverAllunet_mask = label(OverAllunet_mask)
-    OverAllunet_mask = fill_label_holes(OverAllunet_mask.astype('uint16'))
+    OverAllunet_mask = fill_label_holes(OverAllunet_mask.astype("uint16"))
 
     return OverAllunet_mask
 
 
-def UNETPrediction3D(image, model, n_tiles, axis, iou_threshold=0.3, slice_merge=False, erosion_iterations = 15):
+def UNETPrediction3D(image, model, n_tiles, axis, iou_threshold=0.3, slice_merge=False, erosion_iterations=15):
 
-    Segmented = model.predict(image.astype('float32'), axis, n_tiles=n_tiles)
+    Segmented = model.predict(image.astype("float32"), axis, n_tiles=n_tiles)
 
     try:
         thresholds = threshold_multiotsu(Segmented, classes=2)
@@ -1690,31 +2023,29 @@ def UNETPrediction3D(image, model, n_tiles, axis, iou_threshold=0.3, slice_merge
     Binary = regions > 0
     overall_mask = Binary.copy()
     ndim = len(image.shape)
-    
+
     if ndim == 3:
-                for i in range(image.shape[0]):
-                    overall_mask[i,:] = binary_dilation(overall_mask[i,:], iterations = erosion_iterations)
-                    overall_mask[i,:] = binary_erosion(overall_mask[i,:], iterations = erosion_iterations)
-                    overall_mask[i,:] = fill_label_holes(overall_mask[i,:])
-                    Binary[i, :] = binary_erosion(Binary[i, :], iterations = 4)
-    
+        for i in range(image.shape[0]):
+            overall_mask[i, :] = binary_dilation(overall_mask[i, :], iterations=erosion_iterations)
+            overall_mask[i, :] = binary_erosion(overall_mask[i, :], iterations=erosion_iterations)
+            overall_mask[i, :] = fill_label_holes(overall_mask[i, :])
+            Binary[i, :] = binary_erosion(Binary[i, :], iterations=4)
+
     Binary = label(Binary)
-    
-        
+
     if ndim == 3 and slice_merge:
         for i in range(image.shape[0]):
             Binary[i, :] = label(Binary[i, :])
-        Binary = match_labels(Binary.astype('uint16'),
-                              iou_threshold=iou_threshold)
-        
+        Binary = match_labels(Binary.astype("uint16"), iou_threshold=iou_threshold)
+
     # Postprocessing steps
     Finalimage = fill_label_holes(Binary)
     Finalimage = relabel_sequential(Finalimage)[0]
     if ndim == 3:
-          for i in range(image.shape[0]):
-              Finalimage[i,:] = expand_labels(Finalimage[i,:], distance = 50)
-      
-    zero_indices = np.where(overall_mask == 0)          
+        for i in range(image.shape[0]):
+            Finalimage[i, :] = expand_labels(Finalimage[i, :], distance=50)
+
+    zero_indices = np.where(overall_mask == 0)
     Finalimage[zero_indices] = 0
     return Finalimage
 
@@ -1724,10 +2055,9 @@ def Bbox_region(image):
     props = measure.regionprops(image)
     area = [prop.area for prop in props]
     if len(area) > 0:
-            largest_blob_ind = np.argmax(area)
-            largest_bbox = props[largest_blob_ind].bbox
-            return largest_bbox
-           
+        largest_blob_ind = np.argmax(area)
+        largest_bbox = props[largest_blob_ind].bbox
+        return largest_bbox
 
 
 def RemoveLabels(LabelImage, minZ=2):
@@ -1741,80 +2071,103 @@ def RemoveLabels(LabelImage, minZ=2):
     return LabelImage
 
 
-def STARPrediction3D(image, axes, model, n_tiles, unet_mask=None,  UseProbability=True, globalthreshold=0.2, extent=0, seedpool=True, prob_thresh=None, nms_thresh=None):
+def STARPrediction3D(
+    image,
+    axes,
+    model,
+    n_tiles,
+    unet_mask=None,
+    UseProbability=True,
+    globalthreshold=0.2,
+    extent=0,
+    seedpool=True,
+    prob_thresh=None,
+    nms_thresh=None,
+):
 
     copymodel = model
     shape = [image.shape[1], image.shape[2]]
     image = zero_pad_time(image, 64, 64)
     grid = copymodel.config.grid
 
-    print('Predicting Instances')
+    print("Predicting Instances")
 
     if prob_thresh is not None and nms_thresh is not None:
 
-        print(f'Using user choice of prob_thresh = {prob_thresh} and nms_thresh = {nms_thresh}')
+        print(f"Using user choice of prob_thresh = {prob_thresh} and nms_thresh = {nms_thresh}")
         res = model.predict_vollseg(
-            image.astype('float32'), axes = axes, n_tiles=n_tiles, prob_thresh=prob_thresh, nms_thresh=nms_thresh)
+            image.astype("float32"), axes=axes, n_tiles=n_tiles, prob_thresh=prob_thresh, nms_thresh=nms_thresh
+        )
     else:
-        res = model.predict_vollseg(image.astype('float32'), axes = axes, n_tiles=n_tiles)
+        res = model.predict_vollseg(image.astype("float32"), axes=axes, n_tiles=n_tiles)
     MidImage, SmallProbability, SmallDistance = res
-    print('Predictions Done')
-    star_labels = MidImage[:image.shape[0], :shape[0], :shape[1]]
+    print("Predictions Done")
+    star_labels = MidImage[: image.shape[0], : shape[0], : shape[1]]
 
     star_labels = RemoveLabels(star_labels)
     if UseProbability == False:
 
         SmallDistance = MaxProjectDist(SmallDistance, axis=-1)
-        Distance = np.zeros([SmallDistance.shape[0] * grid[0],
-                            SmallDistance.shape[1] * grid[1], SmallDistance.shape[2] * grid[2]])
+        Distance = np.zeros(
+            [SmallDistance.shape[0] * grid[0], SmallDistance.shape[1] * grid[1], SmallDistance.shape[2] * grid[2]]
+        )
 
-    Probability = np.zeros([SmallProbability.shape[0] * grid[0],
-                           SmallProbability.shape[1] * grid[1], SmallProbability.shape[2] * grid[2]])
+    Probability = np.zeros(
+        [SmallProbability.shape[0] * grid[0], SmallProbability.shape[1] * grid[1], SmallProbability.shape[2] * grid[2]]
+    )
 
     # We only allow for the grid parameter to be 1 along the Z axis
     for i in range(0, SmallProbability.shape[0]):
-        Probability[i, :] = cv2.resize(SmallProbability[i, :], dsize=(
-            SmallProbability.shape[2] * grid[2], SmallProbability.shape[1] * grid[1]))
+        Probability[i, :] = cv2.resize(
+            SmallProbability[i, :], dsize=(SmallProbability.shape[2] * grid[2], SmallProbability.shape[1] * grid[1])
+        )
         if UseProbability == False:
-            Distance[i, :] = cv2.resize(SmallDistance[i, :], dsize=(
-                SmallDistance.shape[2] * grid[2], SmallDistance.shape[1] * grid[1]))
+            Distance[i, :] = cv2.resize(
+                SmallDistance[i, :], dsize=(SmallDistance.shape[2] * grid[2], SmallDistance.shape[1] * grid[1])
+            )
 
     if UseProbability:
 
-        print('Using Probability maps')
-        indices = zip(*np.where(Probability < 1.0E-4))
+        print("Using Probability maps")
+        indices = zip(*np.where(Probability < 1.0e-4))
         for z, y, x in indices:
 
             Probability[z, y, x] = 0
 
-        MaxProjectDistance = Probability[:image.shape[0], :shape[0], :shape[1]]
+        MaxProjectDistance = Probability[: image.shape[0], : shape[0], : shape[1]]
 
     else:
 
-        print('Using Distance maps')
-        MaxProjectDistance = Distance[:image.shape[0], :shape[0], :shape[1]]
+        print("Using Distance maps")
+        MaxProjectDistance = Distance[: image.shape[0], : shape[0], : shape[1]]
 
-    print('Doing Watershedding')
+    print("Doing Watershedding")
     if unet_mask is None:
         unet_mask = star_labels > 0
 
-    Watershed, Markers = WatershedwithMask3D(MaxProjectDistance.astype(
-        'uint16'), star_labels.astype('uint16'), unet_mask.astype('uint16'), grid, extent, seedpool)
-    Watershed = fill_label_holes(Watershed.astype('uint16'))
+    Watershed, Markers = WatershedwithMask3D(
+        MaxProjectDistance.astype("uint16"),
+        star_labels.astype("uint16"),
+        unet_mask.astype("uint16"),
+        grid,
+        extent,
+        seedpool,
+    )
+    Watershed = fill_label_holes(Watershed.astype("uint16"))
 
     return Watershed, MaxProjectDistance, star_labels, Markers
 
 
 def VetoRegions(Image, Zratio=3):
 
-    Image = Image.astype('uint16')
+    Image = Image.astype("uint16")
 
     properties = measure.regionprops(Image, Image)
 
     for prop in properties:
 
         LabelImage = prop.image
-        if LabelImage.shape[0] < Image.shape[0]/Zratio:
+        if LabelImage.shape[0] < Image.shape[0] / Zratio:
             indices = zip(*np.where(LabelImage > 0))
             for z, y, x in indices:
 
@@ -1825,13 +2178,13 @@ def VetoRegions(Image, Zratio=3):
 
 # Default method that works well with cells which are below a certain shape and do not have weak edges
 
+
 def iou3D(boxA, centroid, extent=0):
 
     ndim = len(centroid)
     inside = False
 
-    Condition = [Conditioncheck(centroid, boxA, p, ndim, extent)
-                 for p in range(0, ndim)]
+    Condition = [Conditioncheck(centroid, boxA, p, ndim, extent) for p in range(0, ndim)]
 
     inside = all(Condition)
 
@@ -1852,7 +2205,7 @@ def Conditioncheck(centroid, boxA, p, ndim, extent):
 
 
 def WatershedwithMask3D(Image, Label, mask, grid, extent=0, seedpool=True):
-    
+
     properties = measure.regionprops(Label, Image)
     binaryproperties = measure.regionprops(label(mask), Image)
 
@@ -1879,8 +2232,7 @@ def WatershedwithMask3D(Image, Label, mask, grid, extent=0, seedpool=True):
 
     markers_raw = np.zeros_like(Image)
     markers_raw[tuple(coordinates_int.T)] = 1 + np.arange(len(Coordinates))
-    markers = morphology.dilation(
-        markers_raw.astype('uint16'), morphology.ball(2))
+    markers = morphology.dilation(markers_raw.astype("uint16"), morphology.ball(2))
     watershedImage = watershed(-Image, markers, mask=mask.copy())
 
     return watershedImage, markers
@@ -1969,8 +2321,7 @@ def MaxProjectDist(Image, axis=-1):
 def MidProjectDist(Image, axis=-1, slices=1):
 
     assert len(Image.shape) >= 3
-    SmallImage = Image.take(indices=range(
-        Image.shape[axis]//2 - slices, Image.shape[axis]//2 + slices), axis=axis)
+    SmallImage = Image.take(indices=range(Image.shape[axis] // 2 - slices, Image.shape[axis] // 2 + slices), axis=axis)
 
     MaxProject = np.amax(SmallImage, axis=axis)
     return MaxProject
@@ -2013,8 +2364,7 @@ def doubleplot(imageA, imageB, titleA, titleB, targetdir=None, File=None, plotTi
 def _check_dtype_supported(ar):
     # Should use `issubdtype` for bool below, but there's a bug in numpy 1.7
     if not (ar.dtype == bool or np.issubdtype(ar.dtype, np.integer)):
-        raise TypeError("Only bool or integer image types are supported. "
-                        "Got %s." % ar.dtype)
+        raise TypeError("Only bool or integer image types are supported. " "Got %s." % ar.dtype)
 
 
 def normalizeFloatZeroOne(x, pmin=3, pmax=99.8, axis=None, eps=1e-20, dtype=np.float32):
@@ -2034,6 +2384,7 @@ def normalizeFloatZeroOne(x, pmin=3, pmax=99.8, axis=None, eps=1e-20, dtype=np.f
     mi = np.percentile(x, pmin, axis=axis, keepdims=True)
     ma = np.percentile(x, pmax, axis=axis, keepdims=True)
     return normalizer(x, mi, ma, eps=eps, dtype=dtype)
+
 
 # https://docs.python.org/3/library/itertools.html#itertools-recipes
 
@@ -2056,20 +2407,19 @@ def move_image_axes(x, fr, to, adjust_singletons=False):
             if (a not in to) and (x.shape[i] == 1):
                 # remove singleton axis
                 slices[i] = 0
-                fr = fr.replace(a, '')
+                fr = fr.replace(a, "")
         x = x[slices]
         # add dummy axes present in 'to'
         for i, a in enumerate(to):
-            if (a not in fr):
+            if a not in fr:
                 # add singleton axis
                 x = np.expand_dims(x, -1)
                 fr += a
 
     if set(fr) != set(to):
-        _adjusted = '(adjusted to %s and %s) ' % (
-            x.shape, fr) if adjust_singletons else ''
+        _adjusted = "(adjusted to %s and %s) " % (x.shape, fr) if adjust_singletons else ""
         raise ValueError(
-            'image with shape %s and axes %s %snot compatible with target axes %s.'
+            "image with shape %s and axes %s %snot compatible with target axes %s."
             % (x_shape_initial, fr_initial, _adjusted, to)
         )
 
@@ -2093,24 +2443,24 @@ def compose(*funcs):
 
 def normalizeZeroOne(x):
 
-    x = x.astype('float32')
+    x = x.astype("float32")
 
     minVal = np.min(x)
     maxVal = np.max(x)
 
-    x = ((x-minVal) / (maxVal - minVal + 1.0e-20))
+    x = (x - minVal) / (maxVal - minVal + 1.0e-20)
 
     return x
 
 
 def normalizeZero255(x):
 
-    x = x.astype('float32')
+    x = x.astype("float32")
 
     minVal = np.min(x)
     maxVal = np.max(x)
 
-    x = ((x-minVal) / (maxVal - minVal + 1.0e-20))
+    x = (x - minVal) / (maxVal - minVal + 1.0e-20)
 
     return x * 255
 
@@ -2140,9 +2490,7 @@ def normalizer(x, mi, ma, eps=1e-20, dtype=np.float32):
     return x
 
 
-
-
-   # CARE csbdeep modification of implemented function
+# CARE csbdeep modification of implemented function
 
 
 def normalizeFloat(x, pmin=3, pmax=99.8, axis=None, eps=1e-20, dtype=np.float32):
@@ -2190,31 +2538,30 @@ def normalize_mi_ma(x, mi, ma, eps=1e-20, dtype=np.float32):
 
 def backend_channels_last():
     import keras.backend as K
-    assert K.image_data_format() in ('channels_first', 'channels_last')
-    return K.image_data_format() == 'channels_last'
+
+    assert K.image_data_format() in ("channels_first", "channels_last")
+    return K.image_data_format() == "channels_last"
 
 
 def move_channel_for_backend(X, channel):
     if backend_channels_last():
         return np.moveaxis(X, channel, -1)
     else:
-        return np.moveaxis(X, channel,  1)
+        return np.moveaxis(X, channel, 1)
 
 
 def axes_check_and_normalize(axes, length=None, disallowed=None, return_allowed=False):
     """
     S(ample), T(ime), C(hannel), Z, Y, X
     """
-    allowed = 'STCZYX'
+    allowed = "STCZYX"
     axes = str(axes).upper()
-    consume(a in allowed or _raise(ValueError(
-        "invalid axis '%s', must be one of %s." % (a, list(allowed)))) for a in axes)
-    disallowed is None or consume(a not in disallowed or _raise(
-        ValueError("disallowed axis '%s'." % a)) for a in axes)
-    consume(axes.count(a) == 1 or _raise(ValueError(
-        "axis '%s' occurs more than once." % a)) for a in axes)
-    length is None or len(axes) == length or _raise(
-        ValueError('axes (%s) must be of length %d.' % (axes, length)))
+    consume(
+        a in allowed or _raise(ValueError("invalid axis '%s', must be one of %s." % (a, list(allowed)))) for a in axes
+    )
+    disallowed is None or consume(a not in disallowed or _raise(ValueError("disallowed axis '%s'." % a)) for a in axes)
+    consume(axes.count(a) == 1 or _raise(ValueError("axis '%s' occurs more than once." % a)) for a in axes)
+    length is None or len(axes) == length or _raise(ValueError("axes (%s) must be of length %d." % (axes, length)))
     return (axes, allowed) if return_allowed else axes
 
 

@@ -10,7 +10,7 @@
 
 
 ## Installation
-This package can be installed by 
+This package can be installed by
 
 
 `pip install --user vollseg`
@@ -61,10 +61,10 @@ Access the `example` folder and run the cells.
 ![Algorithm](https://github.com/kapoorlab/VollSeg/blob/main/images/Seg_pipe-git.png)
 
 Schematic representation showing the segmentation approach used in VollSeg. First, we input the raw fluorescent image in 3D (A) and preprocess it to remove noise. Next, we obtain the star convex approximation to the cells using Stardist (B) and the U-Net prediction labelled via connected components (C). We then obtain seeds from the centroids of labelled image in B, for each labelled region of C in order to create bounding boxes and centroids. If there is no seed from B in the bounding box region from U-Net, we add the new centroid (in yellow) to the seed pool (D). Finally, we do a marker controlled watershed in 3D using skimage implementation on the probability map shown in (E) to obtain final cell segmentation result shown in (F). All images are displayed in Napari viewer with 3D display view.
-     
+
 ## Example
 
-To try the provided notebooks we provide an example dataset of Arabidopsis, [Binary Images](https://doi.org/10.5281/zenodo.5217367), [Raw Images](https://doi.org/10.5281/zenodo.5217394) and [Labelled images](https://doi.org/10.5281/zenodo.5217341) and trained models: [stardist](https://doi.org/10.5281/zenodo.5227304), [Denoising](https://doi.org/10.5281/zenodo.5227316), [U-Net](https://doi.org/10.5281/zenodo.5227301). For training the networks use this notebook in [Colab](https://github.com/kapoorlab/VollSeg/blob/main/examples/Train/ColabTrainModel.ipynb). To train a denoising model using noise to void use this [notebook](https://github.com/kapoorlab/VollSeg/blob/main/examples/Train/ColabN2VTrain.ipynb) 
+To try the provided notebooks we provide an example dataset of Arabidopsis, [Binary Images](https://doi.org/10.5281/zenodo.5217367), [Raw Images](https://doi.org/10.5281/zenodo.5217394) and [Labelled images](https://doi.org/10.5281/zenodo.5217341) and trained models: [stardist](https://doi.org/10.5281/zenodo.5227304), [Denoising](https://doi.org/10.5281/zenodo.5227316), [U-Net](https://doi.org/10.5281/zenodo.5227301). For training the networks use this notebook in [Colab](https://github.com/kapoorlab/VollSeg/blob/main/examples/Train/ColabTrainModel.ipynb). To train a denoising model using noise to void use this [notebook](https://github.com/kapoorlab/VollSeg/blob/main/examples/Train/ColabN2VTrain.ipynb)
 
 
 
